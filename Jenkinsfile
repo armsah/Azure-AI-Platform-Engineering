@@ -14,6 +14,22 @@ pipeline {
             }
         }
 
+        stage('Skip GitOps-only Commit') {
+            steps {
+                script {
+                    def message = bat(
+                        script: '@git log -1 --pretty=%%B',
+                        returnStdout: true
+                    ).trim()
+
+                    if (message.contains('[skip ci]')) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('GitOps-generated commit: skipping CI')
+                    }
+                }
+            }
+        }
+
         stage('Create Virtual Environment') {
             steps {
                 bat 'if exist .venv rmdir /s /q .venv'
@@ -89,7 +105,45 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Deploying immutable digest: ${env.IMAGE_DIGEST}"
+                    echo "Resolved immutable digest: ${env.IMAGE_DIGEST}"
+                }
+            }
+        }
+
+        stage('Update GitOps Desired State') {
+            steps {
+                bat '''
+                    .venv\\Scripts\\python.exe scripts\\update_gitops_digest.py ^
+                        gitops\\apps\\storage-demo\\helm\\helmrelease.yaml ^
+                        "%IMAGE_DIGEST%"
+                '''
+
+                bat '''
+                    git diff --exit-code --check
+                    git diff -- gitops\\apps\\storage-demo\\helm\\helmrelease.yaml
+                '''
+
+                bat '''
+                    git config user.name "jenkins-ci"
+                    git config user.email "jenkins-ci@local"
+                    git add gitops\\apps\\storage-demo\\helm\\helmrelease.yaml
+                    git commit -m "chore(gitops): promote storage-demo %IMAGE_DIGEST% [skip ci]"
+                '''
+            }
+        }
+
+        stage('Push GitOps Desired State') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-gitops-write',
+                        usernameVariable: 'GITHUB_USER',
+                        passwordVariable: 'GITHUB_TOKEN'
+                    )
+                ]) {
+                    bat '''
+                        git push https://%GITHUB_USER%:%GITHUB_TOKEN%@github.com/armsah/blobuploadtrial.git HEAD:main
+                    '''
                 }
             }
         }
