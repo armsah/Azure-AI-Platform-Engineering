@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-demo-config
+  namespace: storage-demo
+data:
+  AZURE_STORAGE_ACCOUNT_NAME: "starmenlearning2026"
+  AZURE_STORAGE_CONTAINER_NAME: "documents"
+  AZURE_STORAGE_BLOB_NAME: "hello.txt"
+
+  AZURE_AI_ENDPOINT: "https://foundry-armen-sweden-2026.openai.azure.com/openai/v1/"
+  AZURE_AI_DEPLOYMENT: "gpt-5-mini-learning"
+  AZURE_AI_EMBEDDING_DEPLOYMENT: "embedding-learning"
+
+  AZURE_SEARCH_ENDPOINT: "https://search-armen-learning-2026.search.windows.net"
+  AZURE_SEARCH_INDEX: "rag-documents"

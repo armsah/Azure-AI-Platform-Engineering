@@ -9,6 +9,8 @@ deploy.zip
 deploy-test.zip
 infrastructure/main.json
 infrastructure/bootstrap.json
+rendered.yaml
+infrastructure/aks.json
 
 # Terraform
 **/.terraform/*

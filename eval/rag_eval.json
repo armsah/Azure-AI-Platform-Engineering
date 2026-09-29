@@ -1,0 +1,20 @@
+[
+  {
+    "id": "auth-001",
+    "question": "How should an Azure application authenticate without storing credentials?",
+    "expected_sources": ["azure-identity"],
+    "expected_concepts": ["managed identity"]
+  },
+  {
+    "id": "rbac-001",
+    "question": "How should permissions to Azure resources be restricted?",
+    "expected_sources": ["azure-rbac"],
+    "expected_concepts": ["RBAC", "least privilege"]
+  },
+  {
+    "id": "unknown-001",
+    "question": "What is our company's 2035 office expansion plan?",
+    "expected_sources": [],
+    "expected_concepts": []
+  }
+]

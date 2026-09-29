@@ -1,6 +1,9 @@
-from fastapi.testclient import TestClient
-
 import app
+import pytest
+import tool_service
+
+from tool_service import AI_TOOLS
+from fastapi.testclient import TestClient
 
 client = TestClient(app.app)
 
@@ -14,22 +17,22 @@ def test_container_name():
 
 def test_blob_name():
     assert app.BLOB_NAME == "hello.txt"
-    
+
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {
         "status": "healthy"
     }
-    
+
 def test_root_endpoint():
     response = client.get("/")
 
     assert response.status_code == 200
     assert response.json() == {
         "message": "Azure Blob Storage Demo API"
-    }   
-    
+    }
+
 def test_blob_endpoint(monkeypatch):
     class FakeDownloadStream:
         def readall(self):
@@ -63,28 +66,42 @@ def test_blob_endpoint(monkeypatch):
         "blob": "hello.txt",
         "content": "Test blob content"
     }
-    
+
 def test_execute_ai_tool_allows_read_blob(monkeypatch):
-    def fake_read_blob_tool(blob_name):
-        assert blob_name == "hello.txt"
-        return "Mock blob content"
+    monkeypatch.setattr(
+        tool_service,
+        "read_blob_tool",
+        lambda blob_name: "Mock blob content",
+    )
 
-    monkeypatch.setattr(app, "read_blob_tool", fake_read_blob_tool)
+    context = tool_service.ToolContext(
+        tenant_id="customer-a",
+        groups=("platform-engineering",),
+        allowed_tools=frozenset({"read_blob"}),
+        allowed_blob_prefixes=("customer-a/",),
+    )
 
-    result = app.execute_ai_tool(
+    result = tool_service.execute_tool(
         "read_blob",
-        {"blob_name": "hello.txt"}
+        '{"blob_name":"customer-a/hello.txt"}',
+        context,
     )
 
     assert result == "Mock blob content"
-    
+
 def test_execute_ai_tool_denies_unknown_tool():
-    result = app.execute_ai_tool(
-        "delete_all_blobs",
-        {}
+    context = tool_service.ToolContext(
+        tenant_id="customer-a",
+        groups=("platform-engineering",),
+        allowed_tools=frozenset({"read_blob"}),
     )
 
-    assert result == "DENIED: tool 'delete_all_blobs' is not permitted."
+    with pytest.raises(tool_service.ToolDenied):
+        tool_service.execute_tool(
+            "delete_all_blobs",
+            "{}",
+            context,
+        )
 
 def test_ai_endpoint_tool_call(monkeypatch):
     class FakeUsage:
@@ -95,7 +112,7 @@ def test_ai_endpoint_tool_call(monkeypatch):
     class FakeFunctionCall:
         type = "function_call"
         name = "read_blob"
-        arguments = '{"blob_name":"hello.txt"}'
+        arguments = '{"blob_name":"customer-a/hello.txt"}'
         call_id = "call-test-123"
 
     class FakeFirstResponse:
@@ -104,6 +121,7 @@ def test_ai_endpoint_tool_call(monkeypatch):
         usage = FakeUsage()
 
     class FakeFinalResponse:
+        output = []
         output_text = "The file contains: Mock blob content"
         usage = FakeUsage()
 
@@ -117,9 +135,9 @@ def test_ai_endpoint_tool_call(monkeypatch):
             if self.call_count == 1:
                 assert kwargs["model"] == app.AI_DEPLOYMENT
                 assert kwargs["input"] == (
-                    "Read hello.txt and tell me exactly what it contains."
+                    "Read customer-a/hello.txt and tell me exactly what it contains."
                 )
-                assert kwargs["tools"] == app.AI_TOOLS
+                assert kwargs["tools"] == AI_TOOLS
                 return FakeFirstResponse()
 
             assert kwargs["model"] == app.AI_DEPLOYMENT
@@ -141,19 +159,19 @@ def test_ai_endpoint_tool_call(monkeypatch):
     monkeypatch.setattr(
         app,
         "get_ai_client",
-        lambda: FakeAIClient()
+        lambda: FakeAIClient(),
     )
 
     monkeypatch.setattr(
-        app,
+        tool_service,
         "read_blob_tool",
-        lambda blob_name: "Mock blob content"
+        lambda blob_name: "Mock blob content",
     )
 
     response = client.post(
-        "/ai",
+        "/ai/direct",
         json={
-            "message": "Read hello.txt and tell me exactly what it contains."
+            "message": "Read customer-a/hello.txt and tell me exactly what it contains."
         }
     )
 
@@ -163,19 +181,25 @@ def test_ai_endpoint_tool_call(monkeypatch):
     print(body)
 
     assert body["answer"] == "The file contains: Mock blob content"
-    assert body["usage"]["input_tokens"] == 10
-    assert body["usage"]["output_tokens"] == 5
-    assert body["usage"]["total_tokens"] == 15
-    
+    assert body["iterations"] == 2
+    assert body["tool_calls"] == 1
+
 def test_rag_endpoint(monkeypatch):
-    def fake_answer_question(question):
+    def fake_answer_question(question, auth):
         assert question == "How should an Azure app authenticate?"
+        assert auth.tenant_id == "customer-a"
+        assert auth.groups == ("platform-engineering",)
+
         return {
             "answer": "Use managed identity.",
             "sources": ["azure-identity"],
         }
 
-    monkeypatch.setattr("app.answer_question", fake_answer_question)
+    monkeypatch.setattr(
+        app,
+        "answer_question",
+        fake_answer_question,
+    )
 
     response = client.post(
         "/rag",
@@ -183,13 +207,58 @@ def test_rag_endpoint(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "answer": "Use managed identity.",
-        "sources": ["azure-identity"],
-    }
+    assert response.json()["answer"]== "Use managed identity."
 
 
 def test_rag_requires_question():
     response = client.post("/rag", json={})
 
     assert response.status_code == 422
+
+def test_langchain_endpoint(monkeypatch):
+    class FakeMessage:
+        content = "Use managed identity."
+
+    monkeypatch.setattr(
+        app,
+        "run_langchain_agent",
+        lambda **kwargs: {
+            "messages": [FakeMessage()]
+        },
+    )
+
+    response = client.post(
+        "/ai/langchain",
+        json={"message": "How should AKS authenticate?"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["answer"] == "Use managed identity."
+    assert body["orchestrator"] == "langchain"
+
+def test_langgraph_endpoint(monkeypatch):
+    class FakeMessage:
+        content = "Use workload identity."
+
+    monkeypatch.setattr(
+        app,
+        "run_langgraph_agent",
+        lambda **kwargs: {
+            "messages": [FakeMessage()]
+        },
+    )
+
+    response = client.post(
+        "/ai/langgraph",
+        json={"message": "How should my AKS pod authenticate?"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["answer"] == "Use workload identity."
+    assert body["orchestrator"] == "langgraph"

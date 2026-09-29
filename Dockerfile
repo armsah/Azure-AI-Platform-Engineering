@@ -6,7 +6,8 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py rag_service.py ./
+COPY app.py rag_service.py agent_service.py tool_service.py security_context.py observability.py model_router.py resilience.py ./
+COPY agents ./agents
 
 # Create an unprivileged application user
 RUN useradd --create-home --uid 10001 appuser
