@@ -1,0 +1,7 @@
+replicaCount: 2
+
+autoscaling:
+  minReplicas: 2
+  maxReplicas: 4
+
+environment: staging
