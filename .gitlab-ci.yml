@@ -8,8 +8,8 @@ python-test:
   before_script:
     - cd python/storage-demo
     - python -m pip install --upgrade pip
-    - pip install -r requirements.txt
+    - python -m pip install -r requirements-dev.txt
 
   script:
-    - python -m compileall .
+    - python -m compileall -q -x '(\.venv|\.git|\.terraform|__pycache__)' .
     - python -m pytest -q
