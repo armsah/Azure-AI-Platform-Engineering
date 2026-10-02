@@ -1,5 +1,6 @@
 stages:
   - test
+  - auth
 
 python-test:
   stage: test
