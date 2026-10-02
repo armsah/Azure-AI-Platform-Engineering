@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.vscode/
+deploy.zip
+.azure/
+deploy-test.zip
+infrastructure/main.json
+infrastructure/bootstrap.json
+rendered.yaml
+infrastructure/aks.json
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log

@@ -262,3 +262,83 @@ def test_langgraph_endpoint(monkeypatch):
 
     assert body["answer"] == "Use workload identity."
     assert body["orchestrator"] == "langgraph"
+    
+def test_conversation_lifecycle(monkeypatch):
+    class FakeResult:
+        answer = "AKS Workload Identity uses OIDC federation."
+        iterations = 1
+        tool_calls = 0
+
+    monkeypatch.setattr(
+        "app.run_direct_agent",
+        lambda *args, **kwargs: FakeResult(),
+    )
+
+    create_response = client.post("/conversations")
+    assert create_response.status_code == 200
+
+    conversation_id = create_response.json()["conversation_id"]
+
+    message_response = client.post(
+        f"/conversations/{conversation_id}/messages",
+        json={"message": "How does AKS Workload Identity work?"},
+    )
+
+    assert message_response.status_code == 200
+
+    get_response = client.get(
+        f"/conversations/{conversation_id}"
+    )
+
+    assert get_response.status_code == 200
+
+    conversation = get_response.json()
+
+    assert len(conversation["messages"]) == 2
+    assert conversation["messages"][0]["role"] == "user"
+    assert conversation["messages"][1]["role"] == "assistant"
+    
+def test_unauthorized_conversation_does_not_execute_agent(
+    monkeypatch,
+):
+    called = False
+
+    def fake_agent(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("Agent must not execute")
+
+    monkeypatch.setattr(
+        "app.run_direct_agent",
+        fake_agent,
+    )
+
+    # Create conversation owned by the normal test identity.
+    response = client.post("/conversations")
+    conversation_id = response.json()["conversation_id"]
+
+    from request_context import RequestContext
+
+    monkeypatch.setattr(
+        "app.build_request_context",
+        lambda: RequestContext(
+            tenant_id="customer-b",
+            user_id="mallory",
+            groups=(),
+        ),
+    )
+
+    response = client.post(
+        f"/conversations/{conversation_id}/messages",
+        json={"message": "Execute something"},
+    )
+
+    assert response.status_code == 403
+    assert called is False
+    
+def test_conversation_not_found_returns_404():
+    response = client.get(
+        "/conversations/00000000-0000-0000-0000-000000000000"
+    )
+
+    assert response.status_code == 404

@@ -6,6 +6,7 @@ from azure.search.documents.models import VectorizedQuery
 from openai import OpenAI
 from dataclasses import dataclass
 from observability import tracer
+from reranker import RetrievalCandidate, Reranker
 
 
 SEARCH_ENDPOINT = os.getenv(
@@ -28,6 +29,11 @@ CHAT_DEPLOYMENT = os.getenv(
     "AZURE_AI_DEPLOYMENT",
     "gpt-5-mini-learning",
 )
+
+reranker = Reranker()
+
+CANDIDATE_TOP_K = 20
+EVIDENCE_TOP_K = 5
 
 @dataclass(frozen=True)
 class AuthorizationContext:
@@ -75,7 +81,7 @@ def create_search_client():
 def retrieve_documents(
     question: str,
     query_vector: list[float],
-    top_k: int = 5,
+    top_k: int = CANDIDATE_TOP_K,
     filter_expression: str | None = None,
 ):
     search_client = create_search_client()
@@ -102,15 +108,35 @@ def retrieve_documents(
                 top=top_k,
             )
         )
+        
+        candidates = [
+            RetrievalCandidate(
+                id=result["id"],
+                content=result["content"],
+                source=result.get("source", "unknown"),
+                section=result.get("section", "unknown"),
+                retrieval_score=float(
+                    result.get("@search.score", 0.0)
+                ),
+            )
+            for result in results
+        ]
+        
+        ranked = reranker.rerank(
+            query=question,
+            candidates=candidates,
+            top_k=EVIDENCE_TOP_K,
+        )
+        
+        span.set_attribute("rag.candidate_count", len(results))
+        span.set_attribute("rag.evidence_count", len(ranked))
 
-        span.set_attribute("rag.result_count", len(results))
-
-        return results
+        return ranked
 
 def search_authorized_documents(
     query: str,
     auth: AuthorizationContext,
-    top_k: int = 5,
+    top_k: int = CANDIDATE_TOP_K,
 ):
     openai_client = create_openai_client()
 
@@ -154,15 +180,13 @@ def build_context(results) -> str:
     blocks = []
 
     for index, result in enumerate(results, start=1):
-        source = result["source"]
-        section = result.get("section", "unknown")
-        content = result["content"]
+        candidate = result.candidate
 
         blocks.append(
             f"[{index}]\n"
-            f"Source: {source}\n"
-            f"Section: {section}\n"
-            f"Content: {content}"
+            f"Source: {candidate.source}\n"
+            f"Section: {candidate.section}\n"
+            f"Content: {candidate.content}"
         )
 
     return "\n\n".join(blocks)
@@ -171,14 +195,13 @@ def build_context(results) -> str:
 def answer_question(
     question: str,
     auth: AuthorizationContext,
-    top_k: int = 2,
 ):
     openai_client = create_openai_client()
 
     results = search_authorized_documents(
         query=question,
         auth=auth,
-        top_k=top_k,
+        top_k=CANDIDATE_TOP_K,
     )
 
     context = build_context(results)
@@ -206,5 +229,8 @@ Question:
 
     return {
         "answer": response.output_text,
-        "sources": [result["source"] for result in results],
+        "sources": [
+            result.candidate.source
+            for result in results
+        ],
     }

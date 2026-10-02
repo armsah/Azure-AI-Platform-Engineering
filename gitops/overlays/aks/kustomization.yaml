@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base/storage-demo
+
+patches:
+  - target:
+      kind: ServiceAccount
+      name: storage-demo
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          azure.workload.identity/client-id: WORKLOAD_IDENTITY_CLIENT_ID
+          azure.workload.identity/use: "true"
+
+  - target:
+      kind: Deployment
+      name: storage-demo
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/azure.workload.identity~1use
+        value: "true"

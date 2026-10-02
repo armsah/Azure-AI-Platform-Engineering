@@ -1,0 +1,33 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.14"
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+    workingDirectory: python/storage-demo
+    displayName: Install dependencies
+
+  - script: python -m compileall .
+    workingDirectory: python/storage-demo
+    displayName: Compile
+
+  - script: python -m pytest -q
+    workingDirectory: python/storage-demo
+    displayName: Unit and AI tests

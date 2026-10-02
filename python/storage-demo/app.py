@@ -10,6 +10,15 @@ from agents.direct_agent import run_direct_agent
 from agents.langchain_agent import run_langchain_agent
 from agents.langgraph_agent import run_langgraph_agent
 from security_context import build_tool_context
+from conversation_service import ConversationRepository
+from request_context import build_request_context
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
+from conversation_service import (
+    ConversationAccessDenied,
+    ConversationNotFound,
+    ConversationRepository,
+)
 
 
 ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "starmenlearning2026")
@@ -25,11 +34,16 @@ AI_DEPLOYMENT = os.getenv(
     "gpt-5-mini-learning",
 )
 
+conversation_repository = ConversationRepository()
+
 class RagRequest(BaseModel):
     question: str
 
 
 class AIRequest(BaseModel):
+    message: str
+    
+class ConversationMessageRequest(BaseModel):
     message: str
 
 app = FastAPI(
@@ -163,3 +177,96 @@ def ai_langgraph(request: AIRequest):
         "answer": final_message.content,
         "orchestrator": "langgraph",
     }
+    
+@app.post("/conversations")
+def create_conversation():
+    context = build_request_context()
+
+    conversation = conversation_repository.create(
+        tenant_id=context.tenant_id,
+        user_id=context.user_id,
+    )
+
+    return {
+        "conversation_id": conversation.id,
+        "created_at": conversation.created_at,
+    }
+    
+@app.get("/conversations/{conversation_id}")
+def get_conversation(conversation_id: str):
+    context = build_request_context()
+
+    conversation = conversation_repository.get(
+        conversation_id,
+        context.tenant_id,
+        context.user_id,
+    )
+
+    return conversation
+
+@app.post("/conversations/{conversation_id}/messages")
+def send_conversation_message(
+    conversation_id: str,
+    request: ConversationMessageRequest,
+):
+    context = build_request_context()
+
+    # Authorization happens before agent execution.
+    conversation_repository.get(
+        conversation_id,
+        context.tenant_id,
+        context.user_id,
+    )
+
+    conversation_repository.add_message(
+        conversation_id,
+        context.tenant_id,
+        context.user_id,
+        role="user",
+        content=request.message,
+    )
+
+    tool_context = build_tool_context()
+
+    result = run_direct_agent(
+        request.message,
+        tool_context,
+    )
+
+    conversation_repository.add_message(
+        conversation_id,
+        context.tenant_id,
+        context.user_id,
+        role="assistant",
+        content=result.answer,
+    )
+
+    return {
+        "conversation_id": conversation_id,
+        "answer": result.answer,
+        "iterations": result.iterations,
+        "tool_calls": result.tool_calls,
+    }
+    
+@app.exception_handler(ConversationNotFound)
+async def conversation_not_found_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Conversation not found"},
+    )
+
+
+@app.exception_handler(ConversationAccessDenied)
+async def conversation_access_denied_handler(request, exc):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Conversation access denied"},
+    )
+    
+
+@app.exception_handler(ConversationAccessDenied)
+async def conversation_access_denied_handler(request, exc):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Conversation access denied"},
+    )  

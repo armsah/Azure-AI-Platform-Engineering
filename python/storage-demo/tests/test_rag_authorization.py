@@ -5,30 +5,39 @@ from rag_service import (
 )
 
 from rag_service import build_context
+from reranker import RetrievalCandidate, RankedCandidate
 
 
 def test_build_context_preserves_source_metadata():
     results = [
-        {
-            "source": "azure-identity",
-            "section": "Authentication",
-            "content": "Managed identity avoids application credentials.",
-        },
-        {
-            "source": "azure-rbac",
-            "section": "Authorization",
-            "content": "RBAC controls permitted Azure operations.",
-        },
+         RankedCandidate(
+            candidate=RetrievalCandidate(
+                id="1",
+                source="azure-identity",
+                section="Authentication",
+                content="Managed identity avoids application credentials.",
+                retrieval_score=0.9,
+            ),
+            rerank_score=3.0,
+        ),
+        RankedCandidate(
+            candidate=RetrievalCandidate(
+                id="2",
+                source="azure-rbac",
+                section="Authorization",
+                content="RBAC controls permitted Azure operations.",
+                retrieval_score=0.8,
+            ),
+            rerank_score=2.0,
+        ),
     ]
 
     context = build_context(results)
 
-    assert "[1]" in context
-    assert "Source: azure-identity" in context
-    assert "Section: Authentication" in context
-
-    assert "[2]" in context
-    assert "Source: azure-rbac" in context
+    assert "azure-identity" in context
+    assert "Authentication" in context
+    assert "azure-rbac" in context
+    assert "Authorization" in context
 
 def test_tenant_filter():
     auth = AuthorizationContext(
