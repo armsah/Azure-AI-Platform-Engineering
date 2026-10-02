@@ -488,7 +488,7 @@ $RECYCLE.BIN/
 **/*.pyc
 
 # Terraform
-**/.terraform/
+**/.terraform/*
 **/*.tfstate
 **/*.tfstate.*
 **/terraform.tfvars
@@ -523,3 +523,7 @@ rendered.yaml
 *.local
 *.secret
 secrets/
+cosign.key
+
+# Generated security/build evidence
+trivy-image.json

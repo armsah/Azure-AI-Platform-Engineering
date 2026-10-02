@@ -4,6 +4,7 @@ pipeline {
     environment {
         AZURE_CONFIG_DIR = "${WORKSPACE}\\.azure"
         ACR_NAME = "acrarmenlearning2026"
+        APP_DIR = "python\\storage-demo"
     }
 
     stages {
@@ -11,6 +12,8 @@ pipeline {
             steps {
                 bat 'python --version'
                 bat 'git --version'
+                bat 'docker --version'
+                bat 'az version'
             }
         }
 
@@ -32,32 +35,43 @@ pipeline {
 
         stage('Create Virtual Environment') {
             steps {
-                bat 'if exist .venv rmdir /s /q .venv'
-                bat 'python -m venv .venv'
+                dir('python/storage-demo') {
+                    bat 'if exist .venv rmdir /s /q .venv'
+                    bat 'python -m venv .venv'
+                }
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m pip install -r requirements-dev.txt'
+                dir('python/storage-demo') {
+                    bat '.venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                    bat '.venv\\Scripts\\python.exe -m pip install -r requirements-dev.txt'
+                }
             }
         }
 
         stage('Verify Application') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m py_compile app.py'
+                dir('python/storage-demo') {
+                    bat '.venv\\Scripts\\python.exe -m py_compile app.py'
+                }
             }
         }
 
         stage('Unit Tests') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m pytest -v'
+                dir('python/storage-demo') {
+                    bat '.venv\\Scripts\\python.exe -m pytest -v'
+                }
             }
         }
 
         stage('AI Quality Gate') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m pytest tests\\test_agent_eval.py -v'
+                dir('python/storage-demo') {
+                    bat '.venv\\Scripts\\python.exe -m pytest tests\\test_agent_eval.py -v'
+                }
             }
         }
 
@@ -68,18 +82,29 @@ pipeline {
                     env.IMAGE = "${env.ACR_NAME}.azurecr.io/storage-demo:${env.IMAGE_TAG}"
                 }
 
-                bat '''
-                    docker build -t "%IMAGE%" .
-                '''
+                dir('python/storage-demo') {
+                    bat '''
+                        docker build -t "%IMAGE%" .
+                    '''
+                }
             }
         }
 
         stage('Push to ACR') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'azure-client-id', variable: 'AZURE_CLIENT_ID'),
-                    string(credentialsId: 'azure-client-secret', variable: 'AZURE_CLIENT_SECRET'),
-                    string(credentialsId: 'azure-tenant-id', variable: 'AZURE_TENANT_ID')
+                    string(
+                        credentialsId: 'azure-client-id',
+                        variable: 'AZURE_CLIENT_ID'
+                    ),
+                    string(
+                        credentialsId: 'azure-client-secret',
+                        variable: 'AZURE_CLIENT_SECRET'
+                    ),
+                    string(
+                        credentialsId: 'azure-tenant-id',
+                        variable: 'AZURE_TENANT_ID'
+                    )
                 ]) {
                     bat '''
                         az login --service-principal ^
@@ -87,12 +112,11 @@ pipeline {
                             --password "%AZURE_CLIENT_SECRET%" ^
                             --tenant "%AZURE_TENANT_ID%" ^
                             --output none
-                        '''
+                    '''
 
-                        bat 'az acr login --name %ACR_NAME%'
+                    bat 'az acr login --name %ACR_NAME%'
 
-                        bat 'docker push "%IMAGE%"'
-                    
+                    bat 'docker push "%IMAGE%"'
                 }
             }
         }
@@ -113,21 +137,24 @@ pipeline {
         stage('Update GitOps Desired State') {
             steps {
                 bat '''
-                    .venv\\Scripts\\python.exe scripts\\update_gitops_digest.py ^
-                        gitops\\apps\\storage-demo\\helm\\helmrelease.yaml ^
+                    python\\storage-demo\\.venv\\Scripts\\python.exe ^
+                        scripts\\update_gitops_digest.py ^
+                        gitops\\environments\\dev\\values-patch.yaml ^
                         "%IMAGE_DIGEST%"
                 '''
 
                 bat '''
                     git diff --exit-code --check
-                    git diff -- gitops\\apps\\storage-demo\\helm\\helmrelease.yaml
+                    git diff -- gitops\\environments\\dev\\values-patch.yaml
                 '''
 
                 bat '''
                     git config user.name "jenkins-ci"
                     git config user.email "jenkins-ci@local"
-                    git add gitops\\apps\\storage-demo\\helm\\helmrelease.yaml
-                    git commit -m "chore(gitops): promote storage-demo %IMAGE_DIGEST% [skip ci]"
+
+                    git add gitops\\environments\\dev\\values-patch.yaml
+
+                    git commit -m "chore(gitops): promote storage-demo %IMAGE_DIGEST% to dev [skip ci]"
                 '''
             }
         }

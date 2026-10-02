@@ -1,0 +1,13 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: storage-demo
+spec:
+  values:
+    image:
+      digest: sha256:828639f1b00962861d1c3da8cd8f079635a03bb1c1d52502ad702941def922df
+    replicaCount: 1
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    environment: dev
