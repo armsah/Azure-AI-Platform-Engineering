@@ -30,12 +30,10 @@ jobs:
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           allow-no-subscriptions: true
 
       - name: Verify federated Azure authentication
         run: |
-          az account show
           az account get-access-token --query "{expiresOn:expires_on}" -o table
 
       - name: Install dependencies
