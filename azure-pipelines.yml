@@ -31,12 +31,3 @@ steps:
   - script: python -m pytest -q
     workingDirectory: python/storage-demo
     displayName: Unit and AI tests
-
-  - task: AzureCLI@2
-    displayName: Verify Azure WIF authentication
-    inputs:
-      azureSubscription: azure-wif-ai-platform
-      scriptType: bash
-      scriptLocation: inlineScript
-      inlineScript: |
-        az account show --query "{subscription:name, tenant:tenantId, identity:user.name}" -o table
