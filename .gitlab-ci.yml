@@ -13,3 +13,24 @@ python-test:
   script:
     - python -m compileall -q -x '(\.venv|\.git|\.terraform|__pycache__)' .
     - python -m pytest -q
+
+azure-oidc:
+  stage: auth
+  image: mcr.microsoft.com/azure-cli:latest
+
+  id_tokens:
+    AZURE_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+
+  script:
+    - >
+      az login
+      --service-principal
+      --username "$AZURE_CLIENT_ID"
+      --tenant "$AZURE_TENANT_ID"
+      --federated-token "$AZURE_OIDC_TOKEN"
+      --allow-no-subscriptions
+    - az account get-access-token --query "{expiresOn:expires_on}" -o table
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
