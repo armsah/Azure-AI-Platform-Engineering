@@ -7,6 +7,10 @@ azure-search-documents==12.0.0
 langchain==1.4.2
 langchain-openai==1.6.6
 langgraph==1.2.12
+pydantic==2.13.5
 opentelemetry-api==1.45.0
 opentelemetry-sdk==1.45.0
-pydantic==2.13.5
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-httpx
+httpx

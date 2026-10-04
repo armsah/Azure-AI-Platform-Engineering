@@ -1,4 +1,6 @@
 import os
+import httpx
+import logging
 
 from pydantic import BaseModel
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
@@ -10,7 +12,6 @@ from agents.direct_agent import run_direct_agent
 from agents.langchain_agent import run_langchain_agent
 from agents.langgraph_agent import run_langgraph_agent
 from security_context import build_tool_context
-from conversation_service import ConversationRepository
 from request_context import build_request_context
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
@@ -19,7 +20,14 @@ from conversation_service import (
     ConversationNotFound,
     ConversationRepository,
 )
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from observability import configure_logging, configure_otel_logging
 
+
+configure_logging()
+configure_otel_logging()
+logger = logging.getLogger("storage-demo")
 
 ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "starmenlearning2026")
 ACCOUNT_URL = f"https://{ACCOUNT_NAME}.blob.core.windows.net"
@@ -50,6 +58,9 @@ app = FastAPI(
     title="Azure Blob Storage Demo",
     version="1.0.0",
 )
+
+FastAPIInstrumentor.instrument_app(app)
+HTTPXClientInstrumentor().instrument()
 
 def get_authorization_context() -> AuthorizationContext:
     # Learning implementation.
@@ -270,3 +281,30 @@ async def conversation_access_denied_handler(request, exc):
         status_code=403,
         content={"detail": "Conversation access denied"},
     )  
+    
+DOTNET_API_URL = os.getenv(
+    "DOTNET_API_URL",
+    "http://localhost:5001",
+)
+
+@app.get("/trace-demo")
+async def trace_demo():
+    logger.info("Calling dotnet-api")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:5001/trace-demo")
+            response.raise_for_status()
+
+        return {
+            "service": "storage-demo-python",
+            "downstream": response.json(),
+        }
+
+    except httpx.HTTPError:
+        logger.exception(
+            "Downstream request failed",
+            extra={"dependency": "dotnet-api"},
+        )
+        raise
+    

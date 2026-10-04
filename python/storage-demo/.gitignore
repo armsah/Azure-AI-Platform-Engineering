@@ -19,3 +19,5 @@ infrastructure/aks.json
 *.tfplan
 crash.log
 crash.*.log
+
+tools/otel/*.jar
