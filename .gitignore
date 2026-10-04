@@ -527,3 +527,5 @@ cosign.key
 
 # Generated security/build evidence
 trivy-image.json
+# OpenTelemetry downloaded agents
+tools/otel/*.jar
