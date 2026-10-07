@@ -2,46 +2,33 @@
 
 ## What problem is solved?
 
-This project demonstrates how to engineer secure, scalable, and observable AI applications on Azure rather than treating an LLM as an isolated API.
+This project demonstrates how to engineer secure, scalable and observable enterprise AI applications instead of treating an LLM as an isolated API.
 
-It combines Generative AI with production cloud engineering, addressing RAG, agent execution, tenant isolation, identity, CI/CD, Kubernetes deployment, security, observability, reliability, and cost-aware operation.
+It combines Generative AI with production cloud engineering: RAG, agents, tenant isolation, identity, Kubernetes, CI/CD, security, observability, reliability and cost-aware operation.
 
 ## What is the architecture?
 
-The platform is a cloud-native monorepo centered on Azure and Kubernetes.
+The platform is a cloud-native monorepo centered on **Azure and Kubernetes**, while applying cloud-portable architecture patterns.
 
-The Python/FastAPI AI application integrates **Azure AI Foundry/OpenAI, Azure AI Search, Blob Storage, RAG, hybrid retrieval, embeddings, Agentic AI, multi-agent workflows, tool calling, multimodal processing, and HITL controls**.
+The AI layer uses **FastAPI, Azure AI Foundry/OpenAI, Azure AI Search, embeddings, hybrid RAG, reranking, Agentic AI, multi-agent workflows, tool calling, multimodal AI, structured outputs, HITL, evaluation and red-teaming**.
 
-Infrastructure uses **AKS, Docker, Terraform, Bicep, Helm, Kustomize, Flux GitOps, Azure Container Registry, Key Vault, VNet, Private Endpoints, Entra ID, RBAC, Managed Identity, and Workload Identity**.
+The platform uses **AKS, Docker, Terraform, Bicep, Helm, Kustomize, Flux GitOps, ACR, Key Vault, Entra ID, RBAC and Workload Identity**.
 
-Delivery is implemented across **Jenkins, GitHub Actions, Azure DevOps, and GitLab CI/CD**.
+CI/CD spans **Jenkins, GitHub Actions, Azure DevOps and GitLab CI/CD**. Observability uses **OpenTelemetry, Prometheus, Grafana and Loki**.
 
-Observability uses **OpenTelemetry, Prometheus, Grafana, and Loki**.
+Multi-cloud engineering includes portable Kubernetes/application patterns and architecture mappings for **Azure, AWS and GCP**, including AKS/EKS/GKE and cloud-neutral Terraform concepts.
 
 ## What senior engineering problems were solved?
 
-The project implements production-oriented engineering patterns including:
+Key engineering areas include tenant-aware RAG, bounded agent execution, multi-agent delegation, model routing, distributed budgets, circuit breaking, AI evaluation, red-teaming, federated identity, DevSecOps, SBOM/signing, immutable releases, GitOps, autoscaling, network security, distributed tracing, SLI/SLOs, HA/DR, incident analysis, load testing and FinOps.
 
-- Tenant-aware RAG and authorization
-- Agentic and multi-agent AI with bounded execution
-- Model routing, budgets, circuit breaking, and AI evaluation
-- AI red-teaming and controlled tool execution
-- Federated CI identity and workload identity
-- Infrastructure as Code and GitOps
-- DevSecOps, SBOMs, signing, and immutable artifacts
-- Kubernetes autoscaling, network policies, and reliability controls
-- Distributed tracing across Python, .NET, Java, and Node.js
-- SLI/SLO, error budgets, incident analysis, HA/DR, load and capacity testing
-
-A central principle is that **LLM output is a proposal, not authority**. Security and authorization remain deterministic application/platform responsibilities.
+A core principle is: **LLM output is a proposal, not authority.**
 
 ## How can I run or inspect the demo?
-
-Clone and test:
 
 ```bash
 git clone https://github.com/armsah/Azure-AI-Platform-Engineering.git
 cd Azure-AI-Platform-Engineering/python/storage-demo
-python -m venv .venv
 python -m pip install -r requirements.txt
 python -m pytest -q
+python -m uvicorn app:app --reload
