@@ -32,6 +32,10 @@ A central design rule is: **LLM output is a proposal, not authority.**
 git clone https://github.com/armsah/Azure-AI-Platform-Engineering.git
 cd Azure-AI-Platform-Engineering/python/storage-demo
 
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m uvicorn app:app --reload
+
 ## Future improvements
 
 The project extends the existing platform into an integrated production product: authenticated frontend, centralized AI Gateway, stronger tenant controls, GraphRAG, real MCP server/client communication, durable and event-driven agent workflows, DLP/governance, AIOps, controlled remediation, progressive delivery, multi-region recovery and end-to-end production acceptance.
@@ -39,7 +43,3 @@ The project extends the existing platform into an integrated production product:
 The architecture is also designed to reduce Azure-specific coupling. Kubernetes workloads, containers, Helm, OpenTelemetry and application contracts remain portable, while cloud-specific infrastructure is isolated behind IaC and platform boundaries.
 
 The next multi-cloud stage validates the same workload model across AKS, AWS EKS and Google GKE, mapping Azure-specific identity, registry, networking, secrets, AI and data services to AWS/GCP equivalents without redesigning the application core.
-
-python -m pip install -r requirements.txt
-python -m pytest -q
-python -m uvicorn app:app --reload
