@@ -156,8 +156,20 @@ def read_document(args: dict, context: ToolContext) -> str:
     })
 
 def read_blob(args: dict, context: ToolContext) -> str:
-    blob_name = args["blob_name"]
+    requested_name = args["blob_name"]
 
+    if (
+        "/" in requested_name
+        or "\\" in requested_name
+        or requested_name in {".", ".."}
+        or requested_name.startswith(".")
+    ):
+        raise ToolDenied(
+            f"Invalid blob name '{requested_name}'"
+        )
+        
+    blob_name = f"{context.tenant_id}/{requested_name}"
+    
     if not any(
         blob_name.startswith(prefix)
         for prefix in context.allowed_blob_prefixes
@@ -166,7 +178,15 @@ def read_blob(args: dict, context: ToolContext) -> str:
             f"Access to blob '{blob_name}' is not permitted."
         )
 
-    return read_blob_tool(args["blob_name"])
+    return read_blob_tool(blob_name)
+
+def get_blob_service_client() -> BlobServiceClient:
+    credential = DefaultAzureCredential()
+
+    return BlobServiceClient(
+        account_url=ACCOUNT_URL,
+        credential=credential,
+    )
 
 def read_blob_tool(blob_name: str) -> str:
     blob_service_client = get_blob_service_client()

@@ -2,6 +2,8 @@ import os
 import httpx
 import logging
 
+from fastapi import Depends
+from entra_auth import get_request_context
 from pydantic import BaseModel
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI
@@ -12,7 +14,7 @@ from agents.direct_agent import run_direct_agent
 from agents.langchain_agent import run_langchain_agent
 from agents.langgraph_agent import run_langgraph_agent
 from security_context import build_tool_context
-from request_context import build_request_context
+from request_context import RequestContext
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from conversation_service import (
@@ -62,21 +64,22 @@ app = FastAPI(
 FastAPIInstrumentor.instrument_app(app)
 HTTPXClientInstrumentor().instrument()
 
-def get_authorization_context() -> AuthorizationContext:
-    # Learning implementation.
-    # Later: derive these values from validated Entra ID token claims.
+def to_authorization_context(
+    context: RequestContext
+) -> AuthorizationContext:
     return AuthorizationContext(
-        tenant_id="customer-a",
-        groups=("platform-engineering",),
+        tenant_id=context.tenant_id,
+        groups=context.groups,
     )
 
 @app.post("/rag")
-def rag(request: RagRequest):
-    auth = get_authorization_context()
-
+def rag(
+    request: RagRequest, 
+    context: RequestContext = Depends(get_request_context),
+):
     return answer_question(
         question=request.question,
-        auth=auth,
+        auth=to_authorization_context(context),
     )
 
 @app.get("/")
@@ -100,23 +103,40 @@ def get_blob_service_client():
     )
 
 @app.get("/blob")
-def get_blob():
+def get_blob(
+    context: RequestContext = Depends(get_request_context),
+):
+    tool_context = build_tool_context(context)
+    
+    # authorization must happen before Azure access
+    if "read_blob" not in tool_context.allowed_tools:
+        raise HTTPException(
+            status_code=403,
+            detail="Blob access denied",
+        )
+        
+    blob_name = f"{context.tenant_id}/{BLOB_NAME}"
+    
+    if not any(
+        blob_name.startswith(prefix)
+        for prefix in tool_context.allowed_blob_prefixes
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Blob access denied",
+        )
+            
     blob_service_client = get_blob_service_client()
-
     container_client = blob_service_client.get_container_client(
         CONTAINER_NAME
     )
+    blob_client = container_client.get_blob_client(blob_name)
 
-    blob_client = container_client.get_blob_client(
-        BLOB_NAME
-    )
-
-    download_stream = blob_client.download_blob()
-    content = download_stream.readall()
+    content = blob_client.download_blob().readall()
 
     return {
         "container": CONTAINER_NAME,
-        "blob": BLOB_NAME,
+        "blob": blob_name,
         "content": content.decode("utf-8")
     }
 
@@ -134,10 +154,13 @@ def get_ai_client():
     )
 
 @app.post("/ai/direct")
-def ai(request: AIRequest):
+def ai(
+    request: AIRequest,
+    context: RequestContext = Depends(get_request_context)
+):
     client = get_ai_client()
 
-    tool_context = build_tool_context()
+    tool_context = build_tool_context(context)
 
     result = run_direct_agent(
         client=client,
@@ -153,8 +176,11 @@ def ai(request: AIRequest):
     }
 
 @app.post("/ai/langchain")
-def ai_langchain(request: AIRequest):
-    tool_context = build_tool_context()
+def ai_langchain(
+    request: AIRequest,
+    context: RequestContext = Depends(get_request_context),
+):
+    tool_context = build_tool_context(context)
 
     result = run_langchain_agent(
         model=AI_DEPLOYMENT,
@@ -172,8 +198,11 @@ def ai_langchain(request: AIRequest):
     }
 
 @app.post("/ai/langgraph")
-def ai_langgraph(request: AIRequest):
-    tool_context = build_tool_context()
+def ai_langgraph(
+    request: AIRequest,
+    context: RequestContext = Depends(get_request_context),
+):
+    tool_context = build_tool_context(context)
 
     result = run_langgraph_agent(
         model=AI_DEPLOYMENT,
@@ -190,9 +219,9 @@ def ai_langgraph(request: AIRequest):
     }
     
 @app.post("/conversations")
-def create_conversation():
-    context = build_request_context()
-
+def create_conversation(
+    context: RequestContext = Depends(get_request_context),
+):
     conversation = conversation_repository.create(
         tenant_id=context.tenant_id,
         user_id=context.user_id,
@@ -204,8 +233,10 @@ def create_conversation():
     }
     
 @app.get("/conversations/{conversation_id}")
-def get_conversation(conversation_id: str):
-    context = build_request_context()
+def get_conversation(
+    conversation_id: str,
+    context: RequestContext = Depends(get_request_context),
+):
 
     conversation = conversation_repository.get(
         conversation_id,
@@ -219,10 +250,9 @@ def get_conversation(conversation_id: str):
 def send_conversation_message(
     conversation_id: str,
     request: ConversationMessageRequest,
+    context: RequestContext = Depends(get_request_context),
 ):
-    context = build_request_context()
 
-    # Authorization happens before agent execution.
     conversation_repository.get(
         conversation_id,
         context.tenant_id,
@@ -237,7 +267,7 @@ def send_conversation_message(
         content=request.message,
     )
 
-    tool_context = build_tool_context()
+    tool_context = build_tool_context(context)
 
     result = run_direct_agent(
         request.message,
@@ -273,14 +303,7 @@ async def conversation_access_denied_handler(request, exc):
         status_code=403,
         content={"detail": "Conversation access denied"},
     )
-    
 
-@app.exception_handler(ConversationAccessDenied)
-async def conversation_access_denied_handler(request, exc):
-    return JSONResponse(
-        status_code=403,
-        content={"detail": "Conversation access denied"},
-    )  
     
 DOTNET_API_URL = os.getenv(
     "DOTNET_API_URL",
@@ -293,7 +316,7 @@ async def trace_demo():
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get("http://localhost:5001/trace-demo")
+            response = await client.get(f"{DOTNET_API_URL}/trace-demo")
             response.raise_for_status()
 
         return {
