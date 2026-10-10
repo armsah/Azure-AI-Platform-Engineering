@@ -108,7 +108,7 @@ def test_request_completion_log_contains_correlation_fields(caplog):
     assert record.http_method == "GET"
     assert record.http_path == "/health"
     assert record.http_status_code == 200
-    
+
 def test_unexpected_error_log_does_not_expose_exception_details(
     caplog,
 ):

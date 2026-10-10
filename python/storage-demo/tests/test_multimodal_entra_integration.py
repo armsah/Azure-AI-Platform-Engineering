@@ -270,7 +270,7 @@ def test_authenticated_request_reaches_answer_service():
     )
 
     assert response.status_code == 200
-    
+
 def test_token_from_other_directory_returns_401():
     client = make_client()
 
@@ -289,7 +289,7 @@ def test_token_from_other_directory_returns_401():
     response = post_answer(client, token)
 
     assert response.status_code == 401
-    
+
 def test_forged_signature_returns_401():
     client = make_client()
 
@@ -325,7 +325,7 @@ def test_forged_signature_returns_401():
     )
 
     assert response.status_code == 401
-    
+
 def test_resolved_unauthorized_business_tenant_returns_403(
     monkeypatch,
 ):

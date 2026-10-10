@@ -14,7 +14,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from httpcore2 import request
+
 from entra_auth import get_request_context
 
 from pydantic import BaseModel, Field
@@ -46,7 +46,6 @@ from multimodal_upload_workflow import (
     MultimodalUploadWorkflow,
 )
 
-from entra_auth import get_request_context
 
 logger = logging.getLogger("multimodal.api")
 

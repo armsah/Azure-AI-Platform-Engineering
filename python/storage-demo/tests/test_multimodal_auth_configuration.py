@@ -74,4 +74,3 @@ def test_entra_enabled_installs_verified_authentication():
         ]
         is get_request_context
     )
-    

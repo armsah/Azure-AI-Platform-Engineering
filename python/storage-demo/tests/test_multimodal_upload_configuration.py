@@ -101,7 +101,7 @@ def test_missing_upload_workflow_fails_closed():
     assert len(environment.index._documents) == 0
     assert len(environment.descriptions._records) == 0
     assert len(environment.image_sources._items) == 0
-    
+
 def test_ingestion_failure_returns_503_without_internal_details():
     environment = create_offline_multimodal_environment(
         directory_tenant_id=DIRECTORY,
@@ -148,7 +148,7 @@ def test_ingestion_failure_returns_503_without_internal_details():
     }
 
     assert "sensitive diagnostics" not in response.text
-    
+
 def test_vision_provider_timeout_returns_503_without_details():
     environment = create_offline_multimodal_environment(
         directory_tenant_id=DIRECTORY,
@@ -202,7 +202,7 @@ def test_vision_provider_timeout_returns_503_without_details():
     assert len(environment.index._documents) == 0
     assert len(environment.descriptions._records) == 0
     assert len(environment.image_sources._items) == 0
-    
+
 def test_incomplete_rollback_is_logged_without_exposing_details(
     caplog,
 ):

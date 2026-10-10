@@ -91,7 +91,7 @@ def test_indexing_failure_does_not_register_asset():
 
     class FailingIndexingService:
         def __init__(self):
-            
+
             self.index = original_indexing.index
 
         def index_image_description(self, description):
@@ -106,7 +106,7 @@ def test_indexing_failure_does_not_register_asset():
     assert len(environment.index._documents) == 0
     assert len(environment.image_sources._items) == 0
     assert len(environment.descriptions._records) == 0
-    
+
 def test_index_write_then_exception_leaves_no_search_document():
     environment = make_environment()
 
@@ -127,7 +127,7 @@ def test_index_write_then_exception_leaves_no_search_document():
 
     assert len(environment.assets._assets) == 0
     assert len(environment.index._documents) == 0
-    
+
 
 def test_access_grant_failure_revokes_access():
     environment = make_environment()
@@ -177,7 +177,7 @@ def test_access_grant_failure_revokes_access():
     ) == 0
 
     assert len(environment.index._documents) == 0
-    
+
 def test_cleanup_failure_does_not_skip_remaining_cleanup():
     environment = make_environment()
 
