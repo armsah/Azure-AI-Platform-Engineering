@@ -156,6 +156,7 @@ class OfflineMultimodalEnvironment:
     descriptions: ImageDescriptionRegistry
     index: InMemoryMultimodalSearchIndex
     upload_workflow: MultimodalUploadWorkflow
+    answers: MultimodalRAGAnswerService
 
 
 # ============================================================
@@ -306,4 +307,5 @@ def create_offline_multimodal_environment(
         descriptions=descriptions,
         index=index,
         upload_workflow=upload_workflow,
+        answers=answers,
     )

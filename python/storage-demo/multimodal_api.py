@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Annotated, Callable
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import (
@@ -13,12 +14,14 @@ from fastapi import (
     UploadFile,
     status,
 )
+from httpcore2 import request
+from entra_auth import get_request_context
+
 from pydantic import BaseModel, Field
 
 from multimodal_assets import (
     MAX_ASSET_BYTES,
     MultimodalAssetRegistry,
-    MultimodalAssetError,
 )
 
 from multimodal_rag_answer import (
@@ -38,10 +41,14 @@ from tenant_boundary import (
 )
 
 from multimodal_upload_workflow import (
+    MultimodalRollbackError,
     MultimodalUploadError,
     MultimodalUploadWorkflow,
 )
 
+from entra_auth import get_request_context
+
+logger = logging.getLogger("multimodal.api")
 
 class MultimodalAPIError(Exception):
     """Application-level multimodal workflow failure."""
@@ -117,12 +124,52 @@ async def require_authenticated_context(
 
 def create_multimodal_app(
     dependencies: MultimodalAPIDependencies,
+    *,
+    enable_entra_auth: bool = False,
 ) -> FastAPI:
 
     app = FastAPI(
         title="Azure AI Platform — Multimodal API",
         version="0.1.0",
     )
+
+    @app.middleware("http")
+    async def request_observability(request: Request, call_next):
+        request_id = str(uuid4())
+        request.state.request_id = request_id
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.error(
+                "multimodal_request_failed",
+                extra={
+                    "request_id": request_id,
+                    "http_method": request.method,
+                    "http_path": request.url.path,
+                    "failure_category": "unexpected_error",
+                },
+            )
+            raise
+
+        response.headers["X-Request-ID"] = request_id
+
+        logger.info(
+            "multimodal_request_completed",
+            extra={
+                "request_id": request_id,
+                "http_method": request.method,
+                "http_path": request.url.path,
+                "http_status_code": response.status_code,
+            },
+        )
+
+        return response
+
+    if enable_entra_auth:
+        app.dependency_overrides[
+            require_authenticated_context
+        ] = get_request_context
 
     def authorize(
         context: RequestContext,
@@ -151,13 +198,13 @@ def create_multimodal_app(
         status_code=status.HTTP_201_CREATED,
     )
     async def upload_image(
+        request: Request,
         file: Annotated[UploadFile, File()],
         context: Annotated[
             RequestContext,
             Depends(require_authenticated_context),
         ],
     ):
-
         authorized = authorize(context)
 
         if file.content_type not in {
@@ -170,16 +217,12 @@ def create_multimodal_app(
                 detail="Unsupported image content type",
             )
 
-        # Read one byte beyond the limit so oversized uploads
-        # can be rejected without reading an unbounded body.
-        content = await file.read(
-            MAX_ASSET_BYTES + 1
-        )
+        content = await file.read(MAX_ASSET_BYTES + 1)
 
         if len(content) > MAX_ASSET_BYTES:
             raise HTTPException(
                 status_code=413,
-                detail="Image exceeds size limit",
+                detail="Image exceeds maximum allowed size",
             )
 
         if not content:
@@ -189,77 +232,80 @@ def create_multimodal_app(
             )
 
         try:
-            sanitized = sanitize_image(
+            sanitize_image(
                 content_type=file.content_type,
                 content=content,
             )
-
-        except ImageSecurityError:
+        except ImageSecurityError as exc:
             raise HTTPException(
                 status_code=422,
                 detail="Invalid or unsafe image",
+            ) from exc
+
+        if dependencies.upload_workflow is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Image ingestion service is unavailable",
             )
-        
-        if dependencies.upload_workflow is not None:
-
-            try:
-                completed = dependencies.upload_workflow.upload(
-                    context=authorized,
-                    filename=file.filename or "image",
-                    content_type=file.content_type,
-                    content=content,
-                )
-
-            except TenantAuthorizationError:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Tenant access denied",
-                )
-
-            except MultimodalUploadError:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Image processing failed",
-                )
-
-            return ImageUploadResponse(
-                asset_id=completed.asset.asset_id,
-                version=completed.asset.version,
-                content_type=completed.asset.content_type,
-                source_sha256=completed.asset.content_sha256,
-                sanitized_sha256=completed.sanitized.sanitized_sha256,
-                width=completed.sanitized.width,
-                height=completed.sanitized.height,
-                description=completed.description,
-                search_id=completed.search_id,
-            )
-
-        asset_id = str(uuid4())
 
         try:
-            asset = dependencies.assets.register(
-                tenant_id=authorized.tenant_id,
-                asset_id=asset_id,
+            completed = dependencies.upload_workflow.upload(
+                context=authorized,
                 filename=file.filename or "image",
                 content_type=file.content_type,
                 content=content,
-                version=1,
             )
 
-        except MultimodalAssetError:
+        except TenantAuthorizationError as exc:
             raise HTTPException(
-                status_code=422,
-                detail="Image registration failed",
+                status_code=403,
+                detail="Tenant access denied",
+            ) from exc
+
+        except MultimodalUploadError as exc:
+            rollback_incomplete = isinstance(
+                exc,
+                MultimodalRollbackError,
             )
+
+            logger.error(
+                "multimodal_ingestion_failed",
+                extra={
+                    "request_id": getattr(
+                        request.state,
+                        "request_id",
+                        None,
+                    ),
+                    "failure_category": (
+                        "rollback_incomplete"
+                        if rollback_incomplete
+                        else "ingestion_failure"
+                    ),
+                    "rollback_incomplete": rollback_incomplete,
+                },
+            )
+
+            raise HTTPException(
+                status_code=503,
+                detail="Image ingestion service is unavailable",
+            ) from exc
+
+        except (TimeoutError, ConnectionError) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Image ingestion service is unavailable",
+            ) from exc
 
         return ImageUploadResponse(
-            asset_id=asset.asset_id,
-            version=asset.version,
-            content_type=asset.content_type,
-            source_sha256=asset.content_sha256,
-            sanitized_sha256=sanitized.sanitized_sha256,
-            width=sanitized.width,
-            height=sanitized.height,
+            asset_id=completed.asset.asset_id,
+            version=completed.asset.version,
+            content_type=completed.asset.content_type,
+            source_sha256=completed.asset.content_sha256,
+            sanitized_sha256=completed.sanitized.sanitized_sha256,
+            width=completed.sanitized.width,
+            height=completed.sanitized.height,
+            description=completed.description,
+            search_id=completed.search_id,
         )
 
     @app.post(
@@ -283,11 +329,17 @@ def create_multimodal_app(
                 top_k=payload.top_k,
             )
 
-        except TenantAuthorizationError:
+        except TenantAuthorizationError as exc:
             raise HTTPException(
                 status_code=403,
                 detail="Tenant access denied",
-            )
+            ) from exc
+
+        except (TimeoutError, ConnectionError) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Answer generation service is unavailable",
+            ) from exc
 
         citations = [
             CitationResponse(

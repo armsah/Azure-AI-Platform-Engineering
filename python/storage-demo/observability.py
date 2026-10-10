@@ -20,7 +20,10 @@ resource = Resource.create({
     "service.name": os.getenv("OTEL_SERVICE_NAME", "storage-demo-python"),
 })
 
-provider = TracerProvider(resource=resource)
+provider = TracerProvider(
+    resource=resource,
+    shutdown_on_exit=True,
+)
 
 if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
     provider.add_span_processor(
@@ -58,46 +61,98 @@ def traced_operation(name: str, **attributes):
 
         try:
             yield span
-        except Exception as exc:
-            span.record_exception(exc)
+        except Exception:
             span.set_attribute("operation.success", False)
+            span.set_attribute(
+                "operation.failure_category",
+                "unexpected_error",
+            )
             raise
         else:
             span.set_attribute("operation.success", True)
-            
+
 def configure_logging():
+    root = logging.getLogger()
+
+    for existing_handler in root.handlers:
+        if getattr(
+            existing_handler,
+            "_storage_demo_structured_handler",
+            False,
+        ):
+            return existing_handler
+
     handler = logging.StreamHandler()
+
+    handler._storage_demo_structured_handler = True
+
     handler.addFilter(TraceContextFilter())
 
-    handler.setFormatter(logging.Formatter(
-        '{"timestamp":"%(asctime)s",'
-        '"level":"%(levelname)s",'
-        '"logger":"%(name)s",'
-        '"message":"%(message)s",'
-        '"trace_id":"%(trace_id)s",'
-        '"span_id":"%(span_id)s"}'
-    ))
-
-    root = logging.getLogger()
-    root.handlers.clear()
-    root.addHandler(handler)
-    root.setLevel(logging.INFO)
-    
-def configure_otel_logging():
-    provider = LoggerProvider()
-    set_logger_provider(provider)
-
-    exporter = OTLPLogExporter(
-        endpoint="http://localhost:4318/v1/logs"
+    handler.setFormatter(
+        logging.Formatter(
+            '{"timestamp":"%(asctime)s",'
+            '"level":"%(levelname)s",'
+            '"logger":"%(name)s",'
+            '"message":"%(message)s",'
+            '"trace_id":"%(trace_id)s",'
+            '"span_id":"%(span_id)s"}'
+        )
     )
 
-    provider.add_log_record_processor(
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+    return handler
+
+_otel_logger_provider = None
+
+def configure_otel_logging():
+    global _otel_logger_provider
+
+    if _otel_logger_provider is not None:
+        return _otel_logger_provider
+
+    if os.getenv("OTEL_SDK_DISABLED", "").lower() == "true":
+        return None
+
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
+
+    if not endpoint:
+        base_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if base_endpoint:
+            endpoint = base_endpoint.rstrip("/") + "/v1/logs"
+
+    if not endpoint:
+        return None
+
+    logger_provider = LoggerProvider(
+        resource=resource,
+        shutdown_on_exit=True,
+    )
+
+    exporter = OTLPLogExporter(endpoint=endpoint)
+
+    logger_provider.add_log_record_processor(
         BatchLogRecordProcessor(exporter)
     )
 
     handler = LoggingHandler(
         level=logging.INFO,
-        logger_provider=provider,
+        logger_provider=logger_provider,
     )
 
+    set_logger_provider(logger_provider)
     logging.getLogger().addHandler(handler)
+
+    _otel_logger_provider = logger_provider
+
+    return logger_provider
+
+def shutdown_telemetry():
+    global _otel_logger_provider
+
+    if _otel_logger_provider is not None:
+        _otel_logger_provider.shutdown()
+        _otel_logger_provider = None
+
+    provider.shutdown()

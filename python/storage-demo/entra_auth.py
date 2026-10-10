@@ -141,7 +141,19 @@ def get_request_context(
             status_code=401,
             detail="Missing bearer token")
 
-    claims = validate_access_token(credentials.credentials)
+    try:
+        claims = validate_access_token(
+            credentials.credentials
+        )
+
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired access token",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        ) from exc
 
     try:
         authorize_api_token(claims)

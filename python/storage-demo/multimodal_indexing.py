@@ -60,6 +60,18 @@ def _search_id(
         canonical.encode("utf-8")
     ).hexdigest()
 
+def image_description_search_id(
+    description: VisionDescription,
+) -> str:
+    """Return the deterministic search ID for an image description."""
+    return _search_id(
+        tenant_id=description.tenant_id,
+        modality=SearchModality.IMAGE,
+        resource_id=description.asset_id,
+        resource_version=description.asset_version,
+        evidence_id=description.sanitized_sha256,
+    )
+
 
 class MultimodalIndexingService:
     def __init__(
@@ -97,13 +109,7 @@ class MultimodalIndexingService:
                 "Empty image description"
             )
 
-        search_id = _search_id(
-            tenant_id=description.tenant_id,
-            modality=SearchModality.IMAGE,
-            resource_id=description.asset_id,
-            resource_version=description.asset_version,
-            evidence_id=description.sanitized_sha256,
-        )
+        search_id = image_description_search_id(description)
 
         document = MultimodalSearchDocument(
             search_id=search_id,
