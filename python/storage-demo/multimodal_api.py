@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+
+
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import uuid4
@@ -15,9 +17,9 @@ from fastapi import (
     status,
 )
 
-from entra_auth import get_request_context
-
 from pydantic import BaseModel, Field
+
+from entra_auth import get_request_context
 
 from multimodal_assets import (
     MAX_ASSET_BYTES,
@@ -124,7 +126,7 @@ async def require_authenticated_context(
 def create_multimodal_app(
     dependencies: MultimodalAPIDependencies,
     *,
-    enable_entra_auth: bool = False,
+    enable_entra_auth: bool = True,
 ) -> FastAPI:
 
     app = FastAPI(
@@ -206,11 +208,13 @@ def create_multimodal_app(
     ):
         authorized = authorize(context)
 
-        if file.content_type not in {
+        allowed_types = {
             "image/png",
             "image/jpeg",
             "image/webp",
-        }:
+        }
+
+        if file.content_type not in allowed_types:
             raise HTTPException(
                 status_code=415,
                 detail="Unsupported image content type",
@@ -235,6 +239,7 @@ def create_multimodal_app(
                 content_type=file.content_type,
                 content=content,
             )
+
         except ImageSecurityError as exc:
             raise HTTPException(
                 status_code=422,
@@ -262,9 +267,8 @@ def create_multimodal_app(
             ) from exc
 
         except MultimodalUploadError as exc:
-            rollback_incomplete = isinstance(
-                exc,
-                MultimodalRollbackError,
+            rollback_incomplete = (
+                "cleanup was incomplete" in str(exc).lower()
             )
 
             logger.error(
@@ -290,6 +294,18 @@ def create_multimodal_app(
             ) from exc
 
         except (TimeoutError, ConnectionError) as exc:
+            logger.error(
+                "multimodal_ingestion_dependency_unavailable",
+                extra={
+                    "request_id": getattr(
+                        request.state,
+                        "request_id",
+                        None,
+                    ),
+                    "failure_category": "dependency_unavailable",
+                },
+            )
+
             raise HTTPException(
                 status_code=503,
                 detail="Image ingestion service is unavailable",

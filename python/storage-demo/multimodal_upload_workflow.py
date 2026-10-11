@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from dataclasses import dataclass
 from threading import RLock
 from uuid import uuid4
@@ -41,10 +43,16 @@ from multimodal_indexing import image_description_search_id
 class MultimodalUploadError(Exception):
     """Image ingestion workflow failure."""
 
+class MultimodalRollbackError(MultimodalUploadError):
+    """Raised when ingestion fails and rollback is incomplete."""
 
 class MultimodalRollbackError(MultimodalUploadError):
     """Image ingestion failed and rollback was incomplete."""
 
+
+logger = logging.getLogger(
+    "multimodal.upload_workflow"
+)
 
 @dataclass(frozen=True)
 class CompletedImageUpload:
@@ -240,19 +248,51 @@ class MultimodalUploadWorkflow:
                 for step_name, cleanup in cleanup_steps:
                     try:
                         cleanup()
+
                     except Exception as cleanup_error:
                         cleanup_errors.append(
                             (step_name, cleanup_error)
                         )
 
+                        logger.error(
+                            "multimodal_rollback_step_failed",
+                            extra={
+                                "tenant_id": authorized.tenant_id,
+                                "asset_id": asset_id,
+                                "cleanup_step": step_name,
+                                "error_type": type(
+                                    cleanup_error
+                                ).__name__,
+                            },
+                        )
+
                 if cleanup_errors:
-                    details = ", ".join(
+                    failed_steps = [
                         name for name, _ in cleanup_errors
+                    ]
+
+                    logger.error(
+                        "multimodal_rollback_incomplete",
+                        extra={
+                            "tenant_id": authorized.tenant_id,
+                            "asset_id": asset_id,
+                            "failed_steps": failed_steps,
+                        },
                     )
 
                     raise MultimodalRollbackError(
                         "Image ingestion failed and cleanup was "
-                        f"incomplete: {details}"
+                        "incomplete: "
+                        + ", ".join(failed_steps)
                     ) from original_error
+
+                logger.warning(
+                    "multimodal_ingestion_rolled_back",
+                    extra={
+                        "tenant_id": authorized.tenant_id,
+                        "asset_id": asset_id,
+                        "failure_category": "ingestion_failure",
+                    },
+                )
 
                 raise
