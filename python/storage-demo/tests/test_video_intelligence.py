@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from hashlib import sha256
 from types import SimpleNamespace
@@ -158,7 +158,7 @@ def test_video_analysis_rejects_empty_provider_output():
                 version=1,
                 source_bytes=content,
             )
-            
+
 def test_rejects_empty_video():
     with pytest.raises(VideoSecurityError, match="Empty video"):
         extract_video_frames(b"")
@@ -184,7 +184,7 @@ def test_rejects_invalid_frame_limit():
             b"\x00\x00\x00\x18ftypisom",
             limits=limits,
         )
-        
+
 def test_rejects_non_video_before_decoding():
     asset = Mock()
     asset.modality = AssetModality.IMAGE
