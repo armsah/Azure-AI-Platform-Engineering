@@ -8,8 +8,8 @@ from multimodal_assets import AssetModality
 from multimodal_authorization import AuthorizedMultimodalAssetService
 from request_context import RequestContext
 from secure_image_processing import sanitize_image
-from secure_video_processing import VideoLimits, extract_video_frames
-
+from secure_video_processing import VideoLimits
+from video_decoder_worker import extract_video_frames_isolated
 
 class VideoIntelligenceError(Exception):
     """Video analysis failed validation."""
@@ -81,7 +81,7 @@ class VideoIntelligenceService:
                 "Video source integrity mismatch"
             )
 
-        extracted = extract_video_frames(
+        extracted = extract_video_frames_isolated(
             source_bytes,
             limits=self.limits,
         )

@@ -133,7 +133,7 @@ def test_authorized_video_analysis_preserves_provenance():
     client, provider = make_environment()
 
     with patch(
-        "video_intelligence.extract_video_frames",
+        "video_intelligence.extract_video_frames_isolated",
         return_value=(
             VideoFrame(
                 timestamp_seconds=1.5,
