@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-
-
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import uuid4
@@ -267,8 +265,9 @@ def create_multimodal_app(
             ) from exc
 
         except MultimodalUploadError as exc:
-            rollback_incomplete = (
-                "cleanup was incomplete" in str(exc).lower()
+            rollback_incomplete = isinstance(
+                exc,
+                MultimodalRollbackError,
             )
 
             logger.error(

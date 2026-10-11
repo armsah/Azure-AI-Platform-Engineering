@@ -46,10 +46,6 @@ class MultimodalUploadError(Exception):
 class MultimodalRollbackError(MultimodalUploadError):
     """Raised when ingestion fails and rollback is incomplete."""
 
-class MultimodalRollbackError(MultimodalUploadError):
-    """Image ingestion failed and rollback was incomplete."""
-
-
 logger = logging.getLogger(
     "multimodal.upload_workflow"
 )
