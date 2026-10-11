@@ -46,6 +46,20 @@ from multimodal_upload_workflow import (
     MultimodalUploadWorkflow,
 )
 
+from multimodal_assets import (
+    AssetIntegrityError,
+    AssetNotFound,
+    MAX_ASSET_BYTES,
+    MultimodalAssetRegistry,
+)
+
+from secure_video_processing import VideoSecurityError
+
+from video_intelligence import (
+    VideoIntelligenceError,
+    VideoIntelligenceService,
+)
+
 
 logger = logging.getLogger("multimodal.api")
 
@@ -68,6 +82,20 @@ class ImageUploadResponse(BaseModel):
     description: str | None = None
     search_id: str | None = None
 
+class VideoFrameResponse(BaseModel):
+    timestamp_seconds: float
+    description: str
+    sanitized_sha256: str
+
+
+class VideoAnalysisResponse(BaseModel):
+    tenant_id: str
+    asset_id: str
+    asset_version: int
+    source_sha256: str
+    provider: str
+    model: str
+    frames: list[VideoFrameResponse]
 
 class AnswerRequest(BaseModel):
     question: str = Field(
@@ -102,6 +130,7 @@ class MultimodalAPIDependencies:
     assets: MultimodalAssetRegistry
     answers: MultimodalRAGAnswerService
     upload_workflow: MultimodalUploadWorkflow | None = None
+    video_intelligence: VideoIntelligenceService | None = None
 
 
 async def require_authenticated_context(
@@ -320,6 +349,121 @@ def create_multimodal_app(
             height=completed.sanitized.height,
             description=completed.description,
             search_id=completed.search_id,
+        )
+
+    @app.post(
+        "/api/v1/multimodal/videos/{asset_id}/versions/{version}/analyze",
+        response_model=VideoAnalysisResponse,
+    )
+    async def analyze_video(
+        request: Request,
+        asset_id: str,
+        version: int,
+        file: Annotated[UploadFile, File()],
+        context: Annotated[
+            RequestContext,
+            Depends(require_authenticated_context),
+        ],
+    ):
+        authorized = authorize(context)
+
+        if dependencies.video_intelligence is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Video intelligence service is unavailable",
+            )
+
+        if version < 1:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid asset version",
+            )
+
+        if file.content_type != "video/mp4":
+            raise HTTPException(
+                status_code=415,
+                detail="Unsupported video content type",
+            )
+
+        content = await file.read(MAX_ASSET_BYTES + 1)
+
+        if len(content) > MAX_ASSET_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="Video exceeds maximum allowed size",
+            )
+
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="Video is empty",
+            )
+
+        try:
+            result = dependencies.video_intelligence.analyze_asset(
+                context=authorized,
+                asset_id=asset_id,
+                version=version,
+                source_bytes=content,
+            )
+
+        except TenantAuthorizationError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="Video access denied",
+            ) from exc
+
+        except AssetNotFound as exc:
+            raise HTTPException(
+                status_code=404,
+                detail="Video asset not found",
+            ) from exc
+
+        except AssetIntegrityError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Video source integrity verification failed",
+            ) from exc
+
+        except (VideoSecurityError, VideoIntelligenceError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid or unsafe video",
+            ) from exc
+
+        except (TimeoutError, ConnectionError) as exc:
+            logger.error(
+                "video_analysis_dependency_unavailable",
+                extra={
+                    "request_id": getattr(
+                        request.state,
+                        "request_id",
+                        None,
+                    ),
+                    "failure_category": "dependency_unavailable",
+                },
+            )
+
+            raise HTTPException(
+                status_code=503,
+                detail="Video intelligence service is unavailable",
+            ) from exc
+
+        return VideoAnalysisResponse(
+            tenant_id=result.tenant_id,
+            asset_id=result.asset_id,
+            asset_version=result.asset_version,
+            source_sha256=result.source_sha256,
+            provider=result.provider,
+            model=result.model,
+            frames=[
+                VideoFrameResponse(
+                    timestamp_seconds=frame.timestamp_seconds,
+                    description=frame.description,
+                    sanitized_sha256=frame.sanitized_sha256,
+                )
+                for frame in result.frames
+            ],
         )
 
     @app.post(
