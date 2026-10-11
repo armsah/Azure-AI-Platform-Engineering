@@ -15,4 +15,4 @@ opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-httpx
 httpx
 PyJWT[crypto]==2.14.0
-python-multipart==0.0.32
+python-multipart==0.0.32azure-cognitiveservices-speech==1.52.0
