@@ -218,3 +218,15 @@ class ImageDescriptionRegistry:
             )
 
         return record
+
+    def delete(
+        self,
+        *,
+        tenant_id: str,
+        asset_id: str,
+        asset_version: int,
+    ) -> None:
+        key = (tenant_id, asset_id, asset_version)
+
+        with self._lock:
+            self._records.pop(key, None)

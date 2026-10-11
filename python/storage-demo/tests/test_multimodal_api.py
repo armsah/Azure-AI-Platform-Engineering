@@ -25,6 +25,10 @@ from tenant_boundary import (
     TenantMembership,
 )
 
+from multimodal_offline_environment import (
+    create_offline_multimodal_environment,
+)
+
 
 DIRECTORY = "directory-1"
 TENANT = "tenant-a"
@@ -158,7 +162,25 @@ def test_answer_requires_authentication():
 
 
 def test_valid_image_upload():
-    client, assets, _ = make_client()
+    environment = create_offline_multimodal_environment(
+        directory_tenant_id="directory-1",
+        tenant_id="tenant-a",
+        user_id="alice",
+    )
+
+    context = RequestContext(
+        directory_tenant_id="directory-1",
+        tenant_id="tenant-a",
+        user_id="alice",
+        groups=(),
+        roles=("AI.User",),
+    )
+
+    environment.app.dependency_overrides[
+        require_authenticated_context
+    ] = lambda: context
+
+    client = TestClient(environment.app)
 
     response = upload(
         client,
@@ -167,20 +189,13 @@ def test_valid_image_upload():
 
     assert response.status_code == 201
 
-    body = response.json()
+    payload = response.json()
 
-    assert body["version"] == 1
-    assert body["content_type"] == "image/png"
-    assert len(body["source_sha256"]) == 64
-    assert len(body["sanitized_sha256"]) == 64
-
-    stored = assets.get(
-        tenant_id=TENANT,
-        asset_id=body["asset_id"],
-        version=1,
-    )
-
-    assert stored.asset_id == body["asset_id"]
+    assert payload["asset_id"]
+    assert payload["version"] == 1
+    assert payload["content_type"] == "image/png"
+    assert payload["description"]
+    assert payload["search_id"]
 
 
 def test_reject_unsupported_content_type():

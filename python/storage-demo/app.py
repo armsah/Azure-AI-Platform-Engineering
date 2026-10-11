@@ -2,6 +2,7 @@ import os
 import httpx
 import logging
 
+from contextlib import asynccontextmanager
 from fastapi import Depends
 from entra_auth import get_request_context
 from pydantic import BaseModel
@@ -24,7 +25,11 @@ from conversation_service import (
 )
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from observability import configure_logging, configure_otel_logging
+from observability import (
+    configure_logging,
+    configure_otel_logging,
+    shutdown_telemetry,
+)
 
 
 configure_logging()
@@ -55,6 +60,10 @@ class AIRequest(BaseModel):
     
 class ConversationMessageRequest(BaseModel):
     message: str
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
 
 app = FastAPI(
     title="Azure Blob Storage Demo",

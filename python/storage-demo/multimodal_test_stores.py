@@ -40,6 +40,16 @@ class InMemoryImageEvidenceStore:
 
         return self._items[key]
 
+    def delete(
+        self,
+        *,
+        tenant_id: str,
+        asset_id: str,
+        asset_version: int,
+    ) -> None:
+        key = (tenant_id, asset_id, asset_version)
+        self._items.pop(key, None)
+
 
 class InMemoryTextEvidenceStore:
     def __init__(self):

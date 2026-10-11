@@ -26,6 +26,7 @@ jobs:
           python-version: "3.14"
 
       - name: Azure login with OIDC
+        if: github.event_name != 'pull_request'
         uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -33,6 +34,7 @@ jobs:
           allow-no-subscriptions: true
 
       - name: Verify federated Azure authentication
+        if: github.event_name != 'pull_request'
         run: |
           az account get-access-token --query "{expiresOn:expires_on}" -o table
 

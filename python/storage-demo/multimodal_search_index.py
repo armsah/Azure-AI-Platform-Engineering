@@ -191,3 +191,14 @@ class InMemoryMultimodalSearchIndex:
         )
 
         return tuple(hits[:top_k])
+
+    def delete(
+        self,
+        *,
+        tenant_id: str,
+        search_id: str,
+    ) -> None:
+        key = (tenant_id, search_id)
+
+        with self._lock:
+            self._documents.pop(key, None)

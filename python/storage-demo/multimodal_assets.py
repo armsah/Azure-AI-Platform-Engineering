@@ -267,7 +267,7 @@ class MultimodalAssetRegistry:
             )
 
         return asset
-    
+
     def current_version(
         self,
         *,
@@ -286,3 +286,31 @@ class MultimodalAssetRegistry:
             )
 
         return version
+
+    def delete(
+        self,
+        *,
+        tenant_id: str,
+        asset_id: str,
+        version: int,
+    ) -> None:
+        key = (tenant_id, asset_id, version)
+        document_key = (tenant_id, asset_id)
+
+        with self._lock:
+            self._assets.pop(key, None)
+
+            remaining_versions = [
+                asset_version
+                for stored_tenant, stored_asset, asset_version
+                in self._assets
+                if stored_tenant == tenant_id
+                and stored_asset == asset_id
+            ]
+
+            if remaining_versions:
+                self._current[document_key] = max(
+                    remaining_versions
+                )
+            else:
+                self._current.pop(document_key, None)
