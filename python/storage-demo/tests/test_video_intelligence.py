@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from hashlib import sha256
 from types import SimpleNamespace
@@ -68,7 +68,7 @@ def test_video_analysis_preserves_timestamps_and_provenance():
 
     with (
         patch(
-            "video_intelligence.extract_video_frames",
+            "video_intelligence.extract_video_frames_isolated",
             return_value=frames,
         ) as extractor,
         patch(
@@ -108,7 +108,7 @@ def test_video_analysis_rejects_tampered_source():
     service, assets, provider, context, content = _video_service()
 
     with patch(
-        "video_intelligence.extract_video_frames"
+        "video_intelligence.extract_video_frames_isolated"
     ) as extractor:
         with pytest.raises(
             VideoIntelligenceError,
@@ -138,7 +138,7 @@ def test_video_analysis_rejects_empty_provider_output():
 
     with (
         patch(
-            "video_intelligence.extract_video_frames",
+            "video_intelligence.extract_video_frames_isolated",
             return_value=frames,
         ),
         patch(
@@ -199,7 +199,7 @@ def test_rejects_non_video_before_decoding():
         model_name="test-model",
     )
 
-    with patch("video_intelligence.extract_video_frames") as extractor:
+    with patch("video_intelligence.extract_video_frames_isolated") as extractor:
         with pytest.raises(
             VideoIntelligenceError,
             match="not a video",
