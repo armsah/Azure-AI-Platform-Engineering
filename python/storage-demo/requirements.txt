@@ -19,3 +19,4 @@ python-multipart==0.0.32
 azure-cognitiveservices-speech==1.52.0
 pypdf
 Pillow
+opencv-python-headless
