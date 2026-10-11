@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import json
@@ -12,6 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 from voice_pipeline import OfflineSpeechProvider, SpeechProvider
 from voice_sessions import VoiceSessionError, VoiceSessionManager
 from voice_websocket import authenticate_voice_token
+from voice_provider_factory import create_speech_provider
 
 
 @dataclass
@@ -27,7 +28,7 @@ def create_streaming_voice_app(
     dependencies = dependencies or StreamingVoiceDependencies(
         sessions=VoiceSessionManager(),
         authenticate=authenticate_voice_token,
-        provider=OfflineSpeechProvider(),
+        provider=create_speech_provider(),
     )
 
     app = FastAPI(title="Azure AI Platform — Streaming Voice")
