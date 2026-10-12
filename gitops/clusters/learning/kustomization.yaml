@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
   - storage-demo-source.yaml
-  - ../../apps/storage-demo
+  - ../../environments/dev
