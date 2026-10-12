@@ -2,7 +2,7 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
   name: storage-demo-repo
-  namespace: flux-system
+  namespace: storage-demo
 spec:
   interval: 1m
   url: https://github.com/armsah/Azure-AI-Platform-Engineering.git
