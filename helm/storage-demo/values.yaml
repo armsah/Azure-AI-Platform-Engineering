@@ -11,7 +11,7 @@ service:
 
 serviceAccount:
   name: storage-demo-sa
-  clientId: "5bdaa9fc-ed68-40f5-9666-414ca51143d5"
+  clientId: "d0632d65-6682-4b76-af11-f33897397429"
 
 resources:
   requests:
