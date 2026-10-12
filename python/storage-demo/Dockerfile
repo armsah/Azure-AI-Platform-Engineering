@@ -21,7 +21,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY app.py rag_service.py agent_service.py tool_service.py security_context.py observability.py model_router.py resilience.py conversation_service.py reranker.py agentic_rag.py multi_agent.py approval_service.py mcp_policy.py agent_contracts.py agent_budget.py circuit_breaker.py production_model_router.py memory_service.py multimodal.py multi_agent_eval.py red_team.py ./
+COPY --chown=10001:10001 *.py ./
 COPY agents ./agents
 
 RUN useradd --create-home --uid 10001 appuser
