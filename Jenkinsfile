@@ -134,6 +134,19 @@ pipeline {
             }
         }
 
+        stage('Prepare GitOps Promotion Branch') {
+            steps {
+                script {
+                    env.GITOPS_BRANCH = "gitops/promote-storage-demo-${env.BUILD_NUMBER}"
+                }
+
+                bat '''
+                    git fetch origin +refs/heads/main:refs/remotes/origin/main
+                    git switch -c "%GITOPS_BRANCH%" origin/main
+                '''
+            }
+        }
+
         stage('Update GitOps Desired State') {
             steps {
                 bat '''
@@ -161,15 +174,39 @@ pipeline {
 
         stage('Push GitOps Desired State') {
             steps {
+
+                withCredentials([
+                    gitUsernamePassword(
+                        credentialsId: 'github-gitops-write',
+                        gitToolName: 'Default'
+                    )
+                ]) {
+                    bat '''
+                        git push ^
+                            https://github.com/armsah/Azure-AI-Platform-Engineering.git ^
+                            HEAD:refs/heads/%GITOPS_BRANCH%
+                    '''
+                }
+            }
+        }
+
+        stage('Create GitOps Promotion PR') {
+            steps {
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'github-gitops-write',
                         usernameVariable: 'GITHUB_USER',
-                        passwordVariable: 'GITHUB_TOKEN'
+                        passwordVariable: 'GH_TOKEN'
                     )
                 ]) {
                     bat '''
-                        git push https://%GITHUB_USER%:%GITHUB_TOKEN%@github.com/armsah/blobuploadtrial.git HEAD:main
+                        @echo off
+                        "C:\\Program Files\\GitHub CLI\\gh.exe" pr create ^
+                            --repo armsah/Azure-AI-Platform-Engineering ^
+                            --base main ^
+                            --head "%GITOPS_BRANCH%" ^
+                            --title "chore(gitops): promote storage-demo build %BUILD_NUMBER%" ^
+                            --body "Automated promotion of storage-demo image %IMAGE_DIGEST% to the dev environment."
                     '''
                 }
             }
