@@ -39,3 +39,19 @@ and a cost estimate before infrastructure changes.
 
 No live capacity benchmark, secondary-cloud deployment, cost forecast,
 or cloud drift check has been performed.
+
+### B8.1 offline acceptance evidence
+
+The following read-only tools are implemented:
+
+- `scripts/check_configuration_drift.py`: compares desired and observed
+  JSON snapshots; reports missing, unexpected and changed fields.
+- `scripts/audit_preview_lifecycle.py`: validates preview inventory
+  metadata, detects expired previews and flags retirement reviews.
+- Both tools support UTF-8 BOM input and structured JSON output.
+- Regression coverage: 18 tests passed locally.
+
+These checks do not provision, modify or delete infrastructure.
+Snapshot comparison does not establish live Terraform drift detection.
+Preview retirement review does not establish automatic deletion.
+Secondary-cloud portability remains unverified.
