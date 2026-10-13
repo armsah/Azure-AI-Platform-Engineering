@@ -98,6 +98,15 @@ pipeline {
             }
         }
 
+        stage('Generate SBOM') {
+            steps {
+                bat '''
+                    "C:/Tools/Trivy/trivy.exe" image --format cyclonedx --output storage-demo-sbom.json "%IMAGE%"
+                '''
+                archiveArtifacts artifacts: 'storage-demo-sbom.json', fingerprint: true
+            }
+        }
+
         stage('Push to ACR') {
             steps {
                 withCredentials([
