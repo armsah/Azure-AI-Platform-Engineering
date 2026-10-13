@@ -1,6 +1,13 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(
+            name: 'VALIDATION_ONLY',
+            defaultValue: true,
+            description: 'Run quality and resilience checks only; skip Docker, ACR and GitOps deployment.'
+        )
+    }
     environment {
         AZURE_CONFIG_DIR = "${WORKSPACE}\\.azure"
         ACR_NAME = "acrarmenlearning2026"
@@ -84,6 +91,9 @@ pipeline {
             }
         }
         stage('Build Container') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 script {
                     env.IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
@@ -99,6 +109,9 @@ pipeline {
         }
 
         stage('Container Vulnerability Scan') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 bat '''
                     "C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --format table --exit-code 1 --timeout 10m "%IMAGE%"
@@ -107,6 +120,9 @@ pipeline {
         }
 
         stage('Generate SBOM') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 bat '''
                     "C:/Tools/Trivy/trivy.exe" image --format cyclonedx --output storage-demo-sbom.json "%IMAGE%"
@@ -116,6 +132,9 @@ pipeline {
         }
 
         stage('Push to ACR') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 withCredentials([
                     string(
@@ -147,6 +166,9 @@ pipeline {
         }
 
         stage('Resolve Image Digest') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 script {
                     env.IMAGE_DIGEST = bat(
@@ -160,6 +182,9 @@ pipeline {
         }
 
         stage('Prepare GitOps Promotion Branch') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 script {
                     env.GITOPS_BRANCH = "gitops/promote-storage-demo-${env.BUILD_NUMBER}"
@@ -173,6 +198,9 @@ pipeline {
         }
 
         stage('Update GitOps Desired State') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 bat '''
                     python\\storage-demo\\.venv\\Scripts\\python.exe ^
@@ -198,6 +226,9 @@ pipeline {
         }
 
         stage('Push GitOps Desired State') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
 
                 withCredentials([
@@ -216,6 +247,9 @@ pipeline {
         }
 
         stage('Create GitOps Promotion PR') {
+            when {
+                expression { !params.VALIDATION_ONLY }
+            }
             steps {
                 withCredentials([
                     usernamePassword(
