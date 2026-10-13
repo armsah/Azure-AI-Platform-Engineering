@@ -5,7 +5,7 @@ metadata:
 spec:
   values:
     image:
-      digest: sha256:3f81130647f3ff21c22fbc6333c910f44638f43cf069e8aa216bfb88eb0f1dd3
+      digest: sha256:ee91b8bb9e58a58cf378d1e6f1233a532072d2a245702785f55890401d75aab6
     replicaCount: 1
     autoscaling:
       minReplicas: 1
