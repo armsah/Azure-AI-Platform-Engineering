@@ -75,6 +75,14 @@ pipeline {
             }
         }
 
+        stage('AKS Resilience Configuration Gate') {
+            steps {
+                withEnv(['PATH+HELM=C:\\Tools\\bin']) {
+                    bat 'helm.exe lint helm\\storage-demo'
+                    bat 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests\\resilience\\Test-AksResilience.ps1'
+                }
+            }
+        }
         stage('Build Container') {
             steps {
                 script {
