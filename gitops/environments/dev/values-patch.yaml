@@ -6,7 +6,7 @@ spec:
   values:
     image:
       digest: sha256:2a2d91fc708d7248bd9433bb5107b498ceca05dff7bd96f2ab66b03a2a972e91
-    replicaCount: 1
+    replicaCount: 2
     autoscaling:
       minReplicas: 1
       maxReplicas: 3
