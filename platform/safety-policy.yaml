@@ -1,0 +1,36 @@
+﻿apiVersion: platform.example/v1
+kind: PlatformSafetyPolicy
+metadata:
+  name: storage-demo
+spec:
+  deployment:
+    automaticProvisioning: false
+    previewEnvironments:
+      enabled: false
+      maximumLifetimeHours: 24
+      requireApproval: true
+      isolatedNamespace: true
+  portability:
+    containerized: true
+    kubernetesApiVersion: apps/v1
+    terraformProvider: azurerm
+    secondaryCloudValidated: false
+  performance:
+    minimumSuccessRate: 0.999
+    maximumP95Milliseconds: 1000
+    maximumConcurrentRequestsWithoutApproval: 10
+  capacity:
+    minimumReplicas: 2
+    maximumReplicas: 5
+    cpuTargetPercent: 70
+    requireResourceRequests: true
+    requireResourceLimits: true
+  finops:
+    requireBudgetApproval: true
+    allowAutomaticAzureProvisioning: false
+    requireCostEstimateBeforeApply: true
+    maximumUnapprovedMonthlyCostUsd: 0
+  chaos:
+    liveFaultInjectionEnabled: false
+    requireExplicitApproval: true
+    maximumOfflineRecoverySeconds: 30
