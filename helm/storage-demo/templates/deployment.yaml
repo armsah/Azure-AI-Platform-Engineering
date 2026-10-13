@@ -3,6 +3,11 @@ kind: Deployment
 metadata:
   name: {{ include "storage-demo.fullname" . }}
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
