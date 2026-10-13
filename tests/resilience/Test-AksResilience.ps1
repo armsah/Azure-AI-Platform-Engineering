@@ -1,41 +1,57 @@
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
-$chart = "helm/storage-demo"
-$devValues = "gitops/environments/dev/values.yaml"
-
-$manifest = helm template storage-demo $chart -f $devValues
-
+$manifest = & helm.exe template storage-demo ./helm/storage-demo -f ./gitops/environments/dev/values.yaml
 if ($LASTEXITCODE -ne 0) {
-    throw "FAIL: Helm dev template rendering"
+    throw 'Helm rendering failed.'
 }
 
+$documents = ($manifest -join "`n") -split '(?m)^---\s*$'
+
+function Get-Resource {
+    param([string]$Kind)
+
+    $resources = @(
+        $documents | Where-Object {
+            $_ -match "(?m)^kind:\s*$([regex]::Escape($Kind))\s*$"
+        }
+    )
+
+    if ($resources.Count -ne 1) {
+        throw "Expected exactly one $Kind; found $($resources.Count)."
+    }
+
+    return $resources[0]
+}
+
+$deployment = Get-Resource 'Deployment'
+$hpa = Get-Resource 'HorizontalPodAutoscaler'
+$pdb = Get-Resource 'PodDisruptionBudget'
+
 $checks = [ordered]@{
-    "Two dev replicas"                  = 'replicas:\s*2'
-    "Required pod anti-affinity"        = 'requiredDuringSchedulingIgnoredDuringExecution:'
-    "Node-level separation"            = 'topologyKey:\s*kubernetes.io/hostname'
-    "No rollout surge"                 = 'maxSurge:\s*0'
-    "One unavailable during rollout"   = 'maxUnavailable:\s*1'
-    "PodDisruptionBudget present"       = 'kind:\s*PodDisruptionBudget'
-    "PDB minimum available one"         = 'minAvailable:\s*1'
-    "HorizontalPodAutoscaler present"   = 'kind:\s*HorizontalPodAutoscaler'
-    "HPA minimum two replicas"          = 'minReplicas:\s*2'
-    "HPA maximum three replicas"        = 'maxReplicas:\s*3'
+    'Deployment replicas managed by HPA' = ($deployment -notmatch '(?m)^\s*replicas:')
+    'Required pod anti-affinity' = ($deployment -match 'requiredDuringSchedulingIgnoredDuringExecution:')
+    'Hostname topology key' = ($deployment -match 'topologyKey:\s*kubernetes\.io/hostname')
+    'Deployment maxSurge = 0' = ($deployment -match 'maxSurge:\s*0')
+    'Deployment maxUnavailable = 1' = ($deployment -match 'maxUnavailable:\s*1')
+    'PDB exists' = ($null -ne $pdb)
+    'PDB minAvailable = 1' = ($pdb -match 'minAvailable:\s*1')
+    'HPA exists' = ($null -ne $hpa)
+    'HPA minReplicas = 2' = ($hpa -match 'minReplicas:\s*2')
+    'HPA maxReplicas = 3' = ($hpa -match 'maxReplicas:\s*3')
 }
 
 $failed = 0
-
 foreach ($check in $checks.GetEnumerator()) {
-    if ($manifest -match $check.Value) {
-        Write-Host "PASS: $($check.Key)" -ForegroundColor Green
-    }
-    else {
-        Write-Host "FAIL: $($check.Key)" -ForegroundColor Red
+    if ($check.Value) {
+        Write-Host "PASS: $($check.Key)"
+    } else {
+        Write-Host "FAIL: $($check.Key)"
         $failed++
     }
 }
 
 if ($failed -gt 0) {
-    throw "$failed resilience checks failed."
+    throw "B6.23: $failed resilience checks failed."
 }
 
-Write-Host "B6.18: All dev resilience checks passed." -ForegroundColor Green
+Write-Host 'B6.23: All 10 resource-aware resilience checks passed.'
