@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 import logging
+import json
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -36,6 +37,21 @@ else:
 
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("storage-demo.ai")
+
+class JsonLogFormatter(logging.Formatter):
+    def format(self, record):
+        return json.dumps(
+            {
+                "timestamp": self.formatTime(record),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "trace_id": getattr(record, "trace_id", ""),
+                "span_id": getattr(record, "span_id", ""),
+            },
+            ensure_ascii=False,
+        )
+
 
 class TraceContextFilter(logging.Filter):
     def filter(self, record):
@@ -88,16 +104,7 @@ def configure_logging():
 
     handler.addFilter(TraceContextFilter())
 
-    handler.setFormatter(
-        logging.Formatter(
-            '{"timestamp":"%(asctime)s",'
-            '"level":"%(levelname)s",'
-            '"logger":"%(name)s",'
-            '"message":"%(message)s",'
-            '"trace_id":"%(trace_id)s",'
-            '"span_id":"%(span_id)s"}'
-        )
-    )
+    handler.setFormatter(JsonLogFormatter())
 
     root.addHandler(handler)
     root.setLevel(logging.INFO)

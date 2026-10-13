@@ -243,3 +243,25 @@ def test_repeated_app_lifespans_do_not_shutdown_telemetry():
 
     trace_shutdown.assert_not_called()
     telemetry_shutdown.assert_not_called()
+
+
+def test_json_formatter_escapes_special_characters():
+    import json
+    import logging
+
+    from observability import JsonLogFormatter
+
+    message = 'Customer said "hello"\\path\nnext line'
+    record = logging.LogRecord(
+        "storage-demo", logging.INFO, __file__, 1,
+        "%s", (message,), None,
+    )
+
+    result = JsonLogFormatter().format(record)
+    parsed = json.loads(result)
+
+    assert parsed["message"] == message
+    assert parsed["level"] == "INFO"
+    assert parsed["logger"] == "storage-demo"
+    assert "trace_id" in parsed
+    assert "span_id" in parsed
