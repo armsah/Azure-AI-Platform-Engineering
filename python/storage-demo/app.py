@@ -70,6 +70,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
+from http_metrics import install_metrics
+
+install_metrics(app)
+
 FastAPIInstrumentor.instrument_app(app)
 HTTPXClientInstrumentor().instrument()
 
