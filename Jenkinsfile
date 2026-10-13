@@ -90,6 +90,14 @@ pipeline {
             }
         }
 
+        stage('Container Vulnerability Scan') {
+            steps {
+                bat '''
+                    "C:\Tools\Trivy\trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --format table --exit-code 0 --timeout 10m "%IMAGE%"
+                '''
+            }
+        }
+
         stage('Push to ACR') {
             steps {
                 withCredentials([
