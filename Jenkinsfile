@@ -85,7 +85,7 @@ pipeline {
         stage('Observability Configuration Gate') {
             steps {
                 dir('python/storage-demo') {
-                    bat 'python -m pytest tests\\test_http_metrics.py tests\\test_observability_operations.py -q'
+                    bat '.venv\\Scripts\\python.exe -m pytest tests\\test_http_metrics.py tests\\test_observability_operations.py -q'
                 }
             }
         }
