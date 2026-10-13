@@ -89,7 +89,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2026-02-01' = {
       {
         name: 'system'
         mode: 'System'
-        count: 1
+        count: 2
         vmSize: 'Standard_D2s_v3'
         osType: 'Linux'
         osSKU: 'Ubuntu'
