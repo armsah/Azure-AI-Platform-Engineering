@@ -15,6 +15,13 @@ spec:
         app: storage-demo
         azure.workload.identity/use: "true"
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: storage-demo
+              topologyKey: kubernetes.io/hostname
       serviceAccountName: {{ .Values.serviceAccount.name | quote }}
       automountServiceAccountToken: false
       securityContext:
