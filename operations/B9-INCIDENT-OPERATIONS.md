@@ -51,3 +51,19 @@ Refer to release/RECOVERY-RUNBOOK.md and observability/RUNBOOK.md.
 
 Live chaos experiments, production recovery and threat-control effectiveness
 remain unverified while the cluster is stopped.
+
+### B9 offline incident acceptance
+
+The incident assessment module implements deterministic checks for:
+
+- SEV1/SEV2/SEV3 classification.
+- Explicit rollback authorization.
+- Preservation of logs, metrics and deployment revision.
+- Recovery health, SLO and data-integrity verification.
+- Structured assessment reports.
+
+Existing offline fault-injection tests cover dependency failures,
+timeouts, retry behavior and simulated recovery.
+
+These checks do not execute a live chaos experiment, perform a
+production rollback or establish actual incident recovery times.

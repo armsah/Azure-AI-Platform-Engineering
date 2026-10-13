@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import asyncio
@@ -67,6 +67,8 @@ async def execute(
 ) -> LoadResult:
     if requests < 1 or concurrency < 1 or timeout <= 0:
         raise ValueError("Invalid load-test parameters")
+    if concurrency > 10:
+        raise ValueError("Concurrency above 10 requires explicit approval")
 
     semaphore = asyncio.Semaphore(concurrency)
 
