@@ -93,7 +93,7 @@ pipeline {
         stage('Container Vulnerability Scan') {
             steps {
                 bat '''
-                    "C:\Tools\Trivy\trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --format table --exit-code 0 --timeout 10m "%IMAGE%"
+                    "C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --format table --exit-code 0 --timeout 10m "%IMAGE%"
                 '''
             }
         }
