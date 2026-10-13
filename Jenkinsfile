@@ -93,7 +93,7 @@ pipeline {
         stage('Container Vulnerability Scan') {
             steps {
                 bat '''
-                    "C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --format table --exit-code 0 --timeout 10m "%IMAGE%"
+                    "C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --format table --exit-code 1
                 '''
             }
         }
@@ -101,7 +101,7 @@ pipeline {
         stage('Generate SBOM') {
             steps {
                 bat '''
-                    "C:/Tools/Trivy/trivy.exe" image --format cyclonedx --output storage-demo-sbom.json "%IMAGE%"
+                    "C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --format table --exit-code 1 --timeout 10m "%IMAGE%"
                 '''
                 archiveArtifacts artifacts: 'storage-demo-sbom.json', fingerprint: true
             }
