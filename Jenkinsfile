@@ -90,6 +90,15 @@ pipeline {
             }
         }
 
+        stage('Release Readiness Gate') {
+            steps {
+                dir('python/storage-demo') {
+                    bat '.venv\\Scripts\\python.exe -m pytest tests\\test_release_readiness.py -q'
+                    bat '.venv\\Scripts\\python.exe ..\\..\\scripts\\validate_release.py'
+                }
+            }
+        }
+
         stage('AKS Resilience Configuration Gate') {
             steps {
                 withEnv(['PATH+HELM=C:\\Tools\\bin']) {

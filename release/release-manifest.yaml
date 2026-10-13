@@ -1,0 +1,20 @@
+apiVersion: platform.example/v1
+kind: ReleasePolicy
+metadata:
+  name: storage-demo
+spec:
+  application: storage-demo
+  imageRepository: acrarmenlearning2026.azurecr.io/storage-demo
+  environments:
+    dev:
+      namespace: storage-demo
+      minReplicas: 2
+      maxReplicas: 3
+    staging:
+      namespace: storage-demo-staging
+      minReplicas: 2
+      maxReplicas: 4
+    prod:
+      namespace: storage-demo-prod
+      minReplicas: 3
+      maxReplicas: 10
