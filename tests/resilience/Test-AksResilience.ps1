@@ -1,20 +1,25 @@
 $ErrorActionPreference = "Stop"
 
 $chart = "helm/storage-demo"
-$manifest = helm template storage-demo $chart
+$devValues = "gitops/environments/dev/values.yaml"
+
+$manifest = helm template storage-demo $chart -f $devValues
 
 if ($LASTEXITCODE -ne 0) {
-    throw "FAIL: Helm template rendering"
+    throw "FAIL: Helm dev template rendering"
 }
 
-$checks = @{
-    "Two replicas configured" = 'replicas:\s*2'
-    "Required pod anti-affinity" = 'requiredDuringSchedulingIgnoredDuringExecution:'
-    "Node-level separation" = 'topologyKey:\s*kubernetes.io/hostname'
-    "No rollout surge" = 'maxSurge:\s*0'
-    "One unavailable replica permitted" = 'maxUnavailable:\s*1'
-    "PodDisruptionBudget present" = 'kind:\s*PodDisruptionBudget'
-    "Minimum one available replica" = 'minAvailable:\s*1'
+$checks = [ordered]@{
+    "Two dev replicas"                  = 'replicas:\s*2'
+    "Required pod anti-affinity"        = 'requiredDuringSchedulingIgnoredDuringExecution:'
+    "Node-level separation"            = 'topologyKey:\s*kubernetes.io/hostname'
+    "No rollout surge"                 = 'maxSurge:\s*0'
+    "One unavailable during rollout"   = 'maxUnavailable:\s*1'
+    "PodDisruptionBudget present"       = 'kind:\s*PodDisruptionBudget'
+    "PDB minimum available one"         = 'minAvailable:\s*1'
+    "HorizontalPodAutoscaler present"   = 'kind:\s*HorizontalPodAutoscaler'
+    "HPA minimum two replicas"          = 'minReplicas:\s*2'
+    "HPA maximum three replicas"        = 'maxReplicas:\s*3'
 }
 
 $failed = 0
@@ -33,4 +38,4 @@ if ($failed -gt 0) {
     throw "$failed resilience checks failed."
 }
 
-Write-Host "B6.16: All resilience configuration checks passed." -ForegroundColor Green
+Write-Host "B6.18: All dev resilience checks passed." -ForegroundColor Green
