@@ -1,0 +1,28 @@
+groups:
+  - name: storage-demo
+    rules:
+      - alert: StorageDemoHighErrorRate
+        expr: |
+          sum(rate(storage_demo_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(storage_demo_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage demo HTTP 5xx rate exceeds 5%"
+
+      - alert: StorageDemoHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(storage_demo_http_request_duration_seconds_bucket[5m])
+            )
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage demo p95 HTTP latency exceeds 1 second"

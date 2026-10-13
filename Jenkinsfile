@@ -82,6 +82,14 @@ pipeline {
             }
         }
 
+        stage('Observability Configuration Gate') {
+            steps {
+                dir('python/storage-demo') {
+                    bat 'python -m pytest tests\\test_http_metrics.py tests\\test_observability_operations.py -q'
+                }
+            }
+        }
+
         stage('AKS Resilience Configuration Gate') {
             steps {
                 withEnv(['PATH+HELM=C:\\Tools\\bin']) {
