@@ -9,6 +9,7 @@ spec:
   chart:
     spec:
       chart: ./helm/storage-demo
+      reconcileStrategy: Revision
       sourceRef:
         kind: GitRepository
         name: storage-demo-repo
