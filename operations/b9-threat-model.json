@@ -1,0 +1,10 @@
+﻿{
+  "threats": [
+    {"category": "Spoofing", "mitigation": "Workload identity and authentication", "verification": "Review service-account identity configuration"},
+    {"category": "Tampering", "mitigation": "Immutable image digests", "verification": "Validate Helm image digest"},
+    {"category": "Repudiation", "mitigation": "Auditable deployment changes", "verification": "Review Git PR and release history"},
+    {"category": "Information disclosure", "mitigation": "Secrets and access controls", "verification": "Review Key Vault references and RBAC"},
+    {"category": "Denial of service", "mitigation": "Autoscaling and resource limits", "verification": "Validate HPA and resource configuration"},
+    {"category": "Elevation of privilege", "mitigation": "Least privilege and isolation", "verification": "Review service account and network policy"}
+  ]
+}

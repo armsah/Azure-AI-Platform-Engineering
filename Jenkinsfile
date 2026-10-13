@@ -102,10 +102,11 @@ pipeline {
         stage('B8 B9 Platform Safety Gate') {
             steps {
                 dir('python/storage-demo') {
-                    bat '.venv\\Scripts\\python.exe -m pytest tests\\test_platform_b8_b9.py tests\\test_capacity_planning.py tests\\test_platform_lifecycle.py tests\\test_fault_injection.py tests\\test_security_controls_b9.py -q'
+                    bat '.venv\\Scripts\\python.exe -m pytest tests\\test_load_performance_b8.py tests\\test_finops_forecast_b8.py tests\\test_configuration_drift_cli.py tests\\test_preview_lifecycle_cli.py tests\\test_platform_b8_b9.py tests\\test_capacity_planning.py tests\\test_platform_lifecycle.py tests\\test_threat_model_b9.py tests\\test_incident_assessment_b9.py tests\\test_fault_injection.py tests\\test_security_controls_b9.py -q'
                     bat '.venv\\Scripts\\python.exe ..\\..\\scripts\\validate_platform_safety.py'
                     bat '.venv\\Scripts\\python.exe ..\\..\\scripts\\platform_lifecycle.py'
                     bat '.venv\\Scripts\\python.exe ..\\..\\scripts\\validate_security_controls.py'
+                    bat '.venv\\Scripts\\python.exe ..\\..\\scripts\\validate_threat_model.py'
                 }
             }
         }

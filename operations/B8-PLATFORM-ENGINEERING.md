@@ -39,3 +39,52 @@ and a cost estimate before infrastructure changes.
 
 No live capacity benchmark, secondary-cloud deployment, cost forecast,
 or cloud drift check has been performed.
+
+### B8.1 offline acceptance evidence
+
+The following read-only tools are implemented:
+
+- `scripts/check_configuration_drift.py`: compares desired and observed
+  JSON snapshots; reports missing, unexpected and changed fields.
+- `scripts/audit_preview_lifecycle.py`: validates preview inventory
+  metadata, detects expired previews and flags retirement reviews.
+- Both tools support UTF-8 BOM input and structured JSON output.
+- Regression coverage: 18 tests passed locally.
+
+These checks do not provision, modify or delete infrastructure.
+Snapshot comparison does not establish live Terraform drift detection.
+Preview retirement review does not establish automatic deletion.
+Secondary-cloud portability remains unverified.
+
+### B8.2 local acceptance evidence
+
+Local benchmark against a temporary HTTP server bound to
+127.0.0.1:8765:
+
+| Metric | Measured result |
+| --- | ---: |
+| Requests | 100 |
+| Successful requests | 100 |
+| Failures | 0 |
+| Throughput | 307.92 requests/second |
+| p50 latency | 10.75 ms |
+| p95 latency | 14.49 ms |
+| p99 latency | 14.79 ms |
+| Concurrency | 5 |
+| Benchmark exit code | 0 |
+
+Acceptance thresholds: success rate >= 99.9%, p95 <= 1000 ms.
+Both passed against the local test server.
+
+The load tester rejects concurrency above 10 without a separately
+approved testing workflow.
+
+Capacity forecasting tests cover traffic growth, HPA maximum capacity,
+minimum replica cost, budget comparisons and invalid inputs.
+
+The $0.10 hourly replica cost used in tests is hypothetical, not an
+Azure price quotation. Estimates exclude infrastructure overhead.
+
+Local benchmarks do not demonstrate production capacity, real HPA
+scaling or multi-cloud performance. Cost comparisons do not enforce
+Azure subscription spending limits.
