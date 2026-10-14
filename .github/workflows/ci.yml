@@ -46,5 +46,10 @@ jobs:
       - name: Compile
         run: python -m compileall -q -x '(\.venv|\.git|\.terraform|__pycache__)' .
 
+      - name: Offline release and B10 readiness
+        run: |
+          python ../../scripts/validate_release.py
+          python ../../scripts/validate_b10.py
+
       - name: Unit and AI tests
         run: python -m pytest -q

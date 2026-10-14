@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "environment": "production",
+  "checks": [
+    {
+      "id": "release_configuration",
+      "status": "PASS",
+      "evidence": ["release/release-manifest.yaml"]
+    },
+    {
+      "id": "automated_tests",
+      "status": "PENDING",
+      "evidence": ["python/storage-demo/tests/test_release_readiness.py"]
+    },
+    {
+      "id": "security_review",
+      "status": "PENDING",
+      "evidence": ["operations/B9-INCIDENT-OPERATIONS.md"]
+    },
+    {
+      "id": "rollback_plan",
+      "status": "PASS",
+      "evidence": ["release/RECOVERY-RUNBOOK.md"]
+    },
+    {
+      "id": "recovery_drill",
+      "status": "PENDING",
+      "evidence": ["operations/B8-B9-LOCAL-KUBERNETES-EVIDENCE.md"]
+    },
+    {
+      "id": "architecture_review",
+      "status": "PENDING",
+      "evidence": ["README.md"]
+    }
+  ]
+}
