@@ -55,3 +55,29 @@ end-user downtime or a production recovery-time objective.
 - Application checks were limited to /health.
 - Local testing does not satisfy production or second-cloud requirements.
 - Original B8/B9 cloud acceptance criteria remain PARTIAL.
+
+## Concurrent Local HTTP Validation — 2026-10-14
+
+Environment: Docker Desktop + kind (`kind-b8-b9-local`).
+Target: local `storage-demo` deployment, `/health` endpoint.
+Client: Python standard-library `ThreadPoolExecutor`.
+Transport: `kubectl port-forward` to localhost.
+
+| Metric | Observed |
+| --- | ---: |
+| Requests | 200 |
+| Maximum concurrent workers | 10 |
+| HTTP 200 responses | 200 |
+| Failed requests | 0 |
+| Success rate | 100% |
+| Mean client-observed latency | 109.68 ms |
+| P95 client-observed latency | 207.05 ms |
+
+The port-forward process logged intermittent connection-closure
+messages; the client recorded no failed requests.
+
+Scope: a bounded local health-endpoint concurrency check, not a
+representative application workload, sustained capacity benchmark,
+autoscaling test, or production SLO validation.
+
+The ten original cloud/production acceptance criteria remain PARTIAL.
