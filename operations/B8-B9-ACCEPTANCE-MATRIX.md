@@ -18,3 +18,23 @@ evidence. No live Azure deployment is authorized by these checks.
 
 Completion requires evidence for every outstanding acceptance item.
 Passing offline tests does not change a requirement to COMPLETE.
+
+## Local Kubernetes Validation — 2026-10-14
+
+Local evidence: [B8/B9 Kubernetes validation](B8-B9-LOCAL-KUBERNETES-EVIDENCE.md)
+
+The following exercises passed on Docker Desktop + kind:
+
+| Module | Exercise | Observed result |
+| --- | --- | --- |
+| B8.2 | Sequential HTTP health availability | 200/200 successful responses (100%) |
+| B9.1 | Controlled application pod deletion | Replacement pod created automatically |
+| B9.1 | Deployment readiness recovery | 11.65 seconds; replacement ready 1/1 |
+
+These results demonstrate local application availability and Kubernetes
+self-healing. They do not establish representative concurrent load capacity,
+production recovery objectives, second-cloud portability, or live incident
+response readiness.
+
+**Acceptance boundary:** All ten original cloud/production acceptance
+criteria remain PARTIAL until their specific requirements are verified.
