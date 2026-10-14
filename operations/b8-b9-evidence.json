@@ -1,4 +1,4 @@
-﻿{
+{
   "schema_version": 1,
   "merge_commit": "e08bc6b",
   "requirements": [
@@ -7,7 +7,7 @@
     {"id": "B8.1-preview", "status": "PARTIAL", "live_evidence": []},
     {"id": "B8.2-load", "status": "PARTIAL", "live_evidence": []},
     {"id": "B8.2-autoscaling", "status": "PARTIAL", "live_evidence": []},
-    {"id": "B8.2-finops", "status": "PARTIAL", "live_evidence": []},
+    {"id": "B8.2-finops", "status": "PARTIAL", "live_evidence": [{"reference": "operations/B8-FINOPS-AZURE-EVIDENCE.md", "verified": false}]},
     {"id": "B9.1-chaos", "status": "PARTIAL", "live_evidence": []},
     {"id": "B9.1-incident", "status": "PARTIAL", "live_evidence": []},
     {"id": "B9.2-threat-model", "status": "PARTIAL", "live_evidence": []},
