@@ -1,26 +1,30 @@
-{
-  "name": "api",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/auto-instrumentations-node": "^0.80.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
-    "@opentelemetry/sdk-node": "^0.222.0",
-    "express": "^5.2.1"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.4",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
-  }
+﻿{
+    "name":  "api",
+    "version":  "1.0.0",
+    "type":  "module",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "build":  "tsc --noEmit",
+                    "test":  "node --import tsx --test tests/*.test.ts",
+                    "test:ci":  "npm run build \u0026\u0026 npm test"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "dependencies":  {
+                         "@opentelemetry/api":  "^1.9.1",
+                         "@opentelemetry/auto-instrumentations-node":  "^0.80.0",
+                         "@opentelemetry/exporter-trace-otlp-http":  "^0.222.0",
+                         "@opentelemetry/sdk-node":  "^0.222.0",
+                         "express":  "^5.2.1"
+                     },
+    "devDependencies":  {
+                            "@types/express":  "^5.0.6",
+                            "@types/node":  "^26.6.4",
+                            "tsx":  "^4.23.15",
+                            "typescript":  "^7.0.2"
+                        }
 }
